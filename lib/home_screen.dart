@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'add_assignment_screen.dart';
 import 'settings_screen.dart';
 import 'detail_screen.dart';
+import 'providers/assignment_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -70,6 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
   int get completedCount => assignments.where((a) => a["completed"]).length;
   int get pendingCount => assignments.where((a) => !a["completed"]).length;
   int get overdueCount => 1; // Mock value for demonstration
+
+  @override
+  void initState() {
+    super.initState();
+    // Load assignments from backend
+    Future.microtask(() {
+      context.read<AssignmentProvider>().loadAssignments();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

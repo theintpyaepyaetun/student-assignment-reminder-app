@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'home_screen.dart';
+import 'providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -12,7 +14,6 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  bool isLoading = false;
 
   void login() {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
@@ -25,9 +26,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    setState(() => isLoading = true);
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
+    // Call the AuthProvider login method
+    context.read<AuthProvider>().login(
+      email: emailController.text.trim(),
+      password: passwordController.text,
+    ).then((_) {
+      // Check if login was successful
+      if (mounted && context.read<AuthProvider>().isAuthenticated) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -172,42 +177,72 @@ class _LoginScreenState extends State<LoginScreen> {
                               const SizedBox(height: 24),
 
                               // Login Button
-                              SizedBox(
-                                width: double.infinity,
-                                height: 56,
-                                child: ElevatedButton(
-                                  onPressed: isLoading ? null : login,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white.withOpacity(
-                                      0.25,
-                                    ),
-                                    foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: isLoading
-                                      ? SizedBox(
-                                          height: 24,
-                                          width: 24,
-                                          child: CircularProgressIndicator(
-                                            valueColor:
-                                                AlwaysStoppedAnimation<Color>(
-                                                  Colors.white.withOpacity(0.7),
-                                                ),
-                                            strokeWidth: 2,
-                                          ),
-                                        )
-                                      : const Text(
-                                          "Sign In",
-                                          style: TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            letterSpacing: 0.5,
-                                          ),
+                              Consumer<AuthProvider>(
+                                builder: (context, authProvider, _) {
+                                  return SizedBox(
+                                    width: double.infinity,
+                                    height: 56,
+                                    child: ElevatedButton(
+                                      onPressed: authProvider.isLoading ? null : login,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white.withOpacity(
+                                          0.25,
                                         ),
-                                ),
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        elevation: 0,
+                                      ),
+                                      child: authProvider.isLoading
+                                          ? SizedBox(
+                                              height: 24,
+                                              width: 24,
+                                              child: CircularProgressIndicator(
+                                                valueColor:
+                                                    AlwaysStoppedAnimation<Color>(
+                                                      Colors.white.withOpacity(0.7),
+                                                    ),
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                          : const Text(
+                                              "Sign In",
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: 0.5,
+                                              ),
+                                            ),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const SizedBox(height: 16),
+                              // Error message display
+                              Consumer<AuthProvider>(
+                                builder: (context, authProvider, _) {
+                                  if (authProvider.error != null) {
+                                    return Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Colors.red.withOpacity(0.5),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        authProvider.error!,
+                                        style: TextStyle(
+                                          color: Colors.red.withOpacity(0.8),
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return const SizedBox.shrink();
+                                },
                               ),
                             ],
                           ),
