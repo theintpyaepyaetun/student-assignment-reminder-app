@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:student_assignment_reminder_app/models/user_model.dart';
 import 'package:student_assignment_reminder_app/services/firebase_service.dart';
-import 'package:student_assignment_reminder_app/services/firebase_rest_auth.dart';
+import 'package:student_assignment_reminder_app/services/local_auth_service.dart';
 
 // Auth state
 class AuthState {
@@ -63,8 +63,8 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // Use REST API for sign up
-      final result = await FirebaseRestAuth.signUp(
+      // Use local authentication (works offline and for testing)
+      final result = await LocalAuthService.signUp(
         email: email,
         password: password,
       );
@@ -95,8 +95,8 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // Try REST API first (more reliable than Firebase SDK on emulator)
-      final result = await FirebaseRestAuth.signIn(
+      // Use local authentication (works offline and for testing)
+      final result = await LocalAuthService.signIn(
         email: email,
         password: password,
       );
@@ -125,7 +125,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _firebaseService.logout();
+    await LocalAuthService.signOut();
     _setState(AuthState());
   }
 
