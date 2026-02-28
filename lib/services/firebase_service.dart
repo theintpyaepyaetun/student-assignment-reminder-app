@@ -29,12 +29,24 @@ class FirebaseService {
     }
 
     // Only initialize Firebase if we have real credentials
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint('✅ Firebase initialized successfully');
 
-    // Enable offline persistence for database when real config is present
-    _database.setPersistenceEnabled(true);
+      // Try to enable offline persistence for database (optional, won't fail if DB doesn't exist)
+      try {
+        _database.setPersistenceEnabled(true);
+        debugPrint('✅ Database persistence enabled');
+      } catch (e) {
+        debugPrint('⚠️ Could not enable database persistence: $e');
+        // This is okay - database might not be created yet
+      }
+    } catch (e) {
+      debugPrint('❌ Firebase initialization error: $e');
+      rethrow;
+    }
   }
 
   // Auth Methods
@@ -62,15 +74,19 @@ class FirebaseService {
     required String password,
   }) async {
     try {
-      if (!isConfigured) {
-        throw Exception('Firebase not configured');
-      }
-      return await _auth.signInWithEmailAndPassword(
+      debugPrint('🔐 Attempting Firebase login for: $email');
+      final result = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      debugPrint('✅ Login successful for: $email');
+      return result;
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ Firebase Auth Error [${e.code}]: ${e.message}');
       throw _handleAuthException(e);
+    } catch (e) {
+      debugPrint('❌ Unexpected error during login: $e');
+      rethrow;
     }
   }
 
