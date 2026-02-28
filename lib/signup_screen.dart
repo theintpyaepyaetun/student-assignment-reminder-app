@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'login_screen.dart';
-import 'home_screen.dart';
+import 'screens/task_list_screen.dart';
 import 'providers/auth_provider.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -78,10 +78,37 @@ class _SignUpScreenState extends State<SignUpScreen> {
         )
         .then((_) {
           // Check if registration was successful
-          if (mounted && context.read<AuthProvider>().isAuthenticated) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
+          if (mounted) {
+            final authProvider = context.read<AuthProvider>();
+            if (authProvider.isAuthenticated) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text("✅ Account created successfully!"),
+                  backgroundColor: Color(0xFF4CAF50),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const TaskListScreen()),
+              );
+            } else if (authProvider.error != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("❌ ${authProvider.error}"),
+                  backgroundColor: Color(0xFFEF5350),
+                ),
+              );
+            }
+          }
+        })
+        .catchError((error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text("❌ Error: ${error.toString()}"),
+                backgroundColor: Color(0xFFEF5350),
+              ),
             );
           }
         });

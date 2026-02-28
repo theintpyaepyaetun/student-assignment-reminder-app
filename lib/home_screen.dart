@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_assignment_screen.dart';
 import 'settings_screen.dart';
 import 'detail_screen.dart';
@@ -49,21 +50,52 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
 
   void addAssignment(Map<String, dynamic> assignment) {
-    setState(() {
-      assignments.add(assignment);
-    });
-
-    // Try to save to Firebase in background (don't block UI)
+    // Save to Firestore first to get document ID
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
       if (userId != null) {
-        final firebaseService = FirebaseService();
-        firebaseService.addAssignment(userId, assignment).catchError((e) {
-          debugPrint('❌ Error saving to Firebase: $e');
+        debugPrint('📝 Saving assignment to Firestore for user: $userId');
+
+        // Add userId and timestamps
+        final assignmentData = {
+          ...assignment,
+          'userId': userId,
+          'createdAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+
+        // Save to Firestore 'assignments' collection
+        FirebaseFirestore.instance
+            .collection('assignments')
+            .add(assignmentData)
+            .then((docRef) {
+              debugPrint(
+                '✅ Assignment created in Firestore with ID: ${docRef.id}',
+              );
+              // Update local state with the document ID
+              setState(() {
+                assignment['id'] = docRef.id;
+                assignments.add(assignment);
+              });
+            })
+            .catchError((e) {
+              debugPrint('❌ Error saving to Firestore: $e');
+              // Still add to local state even if Firebase fails
+              setState(() {
+                assignments.add(assignment);
+              });
+            });
+      } else {
+        debugPrint('⚠️ No user authenticated - assignment NOT saved');
+        setState(() {
+          assignments.add(assignment);
         });
       }
     } catch (e) {
-      debugPrint('❌ Firebase save error: $e');
+      debugPrint('❌ Firestore save error: $e');
+      setState(() {
+        assignments.add(assignment);
+      });
     }
   }
 
@@ -71,9 +103,72 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       assignments[index] = assignment;
     });
+
+    // Update in Firestore
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      final docId = assignment['id'];
+
+      if (userId != null && docId != null) {
+        debugPrint('✏️ Updating assignment in Firestore: $docId');
+
+        final assignmentData = {
+          ...assignment,
+          'userId': userId,
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+        // Remove the 'id' field from the data being saved
+        assignmentData.remove('id');
+
+        FirebaseFirestore.instance
+            .collection('assignments')
+            .doc(docId)
+            .update(assignmentData)
+            .then((_) {
+              debugPrint('✅ Assignment updated in Firestore: $docId');
+            })
+            .catchError((e) {
+              debugPrint('❌ Error updating in Firestore: $e');
+            });
+      } else {
+        debugPrint(
+          '⚠️ No document ID found - assignment not synced to Firestore',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Firestore update error: $e');
+    }
   }
 
   void deleteAssignment(int index) {
+    // Delete from Firestore
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      final docId = assignments[index]['id'];
+
+      if (userId != null && docId != null) {
+        debugPrint('🗑️ Deleting assignment from Firestore: $docId');
+
+        FirebaseFirestore.instance
+            .collection('assignments')
+            .doc(docId)
+            .delete()
+            .then((_) {
+              debugPrint('✅ Assignment deleted from Firestore: $docId');
+            })
+            .catchError((e) {
+              debugPrint('❌ Error deleting from Firestore: $e');
+            });
+      } else {
+        debugPrint(
+          '⚠️ No document ID found - assignment not deleted from Firestore',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Firestore delete error: $e');
+    }
+
+    // Remove from local state
     setState(() {
       assignments.removeAt(index);
     });
@@ -83,6 +178,33 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       assignments[index]["completed"] = !assignments[index]["completed"];
     });
+
+    // Update completion status in Firestore
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      final docId = assignments[index]['id'];
+      final completed = assignments[index]["completed"];
+
+      if (userId != null && docId != null) {
+        debugPrint('✓ Updating completion status in Firestore: $docId');
+
+        FirebaseFirestore.instance
+            .collection('assignments')
+            .doc(docId)
+            .update({
+              'completed': completed,
+              'updatedAt': FieldValue.serverTimestamp(),
+            })
+            .then((_) {
+              debugPrint('✅ Completion status updated in Firestore: $docId');
+            })
+            .catchError((e) {
+              debugPrint('❌ Error updating completion in Firestore: $e');
+            });
+      }
+    } catch (e) {
+      debugPrint('❌ Firestore completion update error: $e');
+    }
   }
 
   int get completedCount => assignments.where((a) => a["completed"]).length;

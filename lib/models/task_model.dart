@@ -38,14 +38,17 @@ class Task {
 
   // Create Task from Firestore document
   factory Task.fromMap(Map<String, dynamic> map, String id) {
+    // Handle both 'dueDate' and 'deadline' field names
+    final dueDateField = map['dueDate'] ?? map['deadline'];
+
     return Task(
       id: id,
       userId: map['userId'] as String? ?? '',
       title: map['title'] as String? ?? '',
       description: map['description'] as String? ?? '',
-      isCompleted: map['isCompleted'] as bool? ?? false,
+      isCompleted: (map['isCompleted'] ?? map['completed'] ?? false) as bool,
       createdAt: (map['createdAt'] as dynamic)?.toDate() ?? DateTime.now(),
-      dueDate: (map['dueDate'] as dynamic)?.toDate() ?? DateTime.now(),
+      dueDate: (dueDateField as dynamic)?.toDate() ?? DateTime.now(),
       category: map['category'] as String?,
       priority: map['priority'] as int?,
     );

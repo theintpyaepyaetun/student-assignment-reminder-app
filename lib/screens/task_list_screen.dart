@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:student_assignment_reminder_app/models/task_model.dart';
 import 'package:student_assignment_reminder_app/providers/task_provider.dart';
+import 'package:student_assignment_reminder_app/settings_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -27,6 +28,17 @@ class _TaskListScreenState extends State<TaskListScreen> {
         title: const Text('My Tasks'),
         elevation: 0,
         backgroundColor: const Color(0xFF667EEA),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: Consumer<TaskProvider>(
         builder: (context, taskProvider, _) {

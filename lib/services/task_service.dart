@@ -25,13 +25,13 @@ class TaskService {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      final taskRef = await _firestore.collection('tasks').add({
+      final taskRef = await _firestore.collection('assignments').add({
         'userId': userId,
         'title': title,
         'description': description,
-        'isCompleted': false,
+        'completed': false,
         'createdAt': FieldValue.serverTimestamp(),
-        'dueDate': dueDate,
+        'deadline': dueDate,
         'category': category,
         'priority': priority,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -53,7 +53,7 @@ class TaskService {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      final doc = await _firestore.collection('tasks').doc(taskId).get();
+      final doc = await _firestore.collection('assignments').doc(taskId).get();
 
       if (!doc.exists) {
         debugPrint('⚠️ Task not found: $taskId');
@@ -81,9 +81,9 @@ class TaskService {
       if (userId == null) throw Exception('User not authenticated');
 
       final snapshot = await _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .orderBy('dueDate', descending: false)
+          .orderBy('deadline', descending: false)
           .get();
 
       final tasks = snapshot.docs.map((doc) {
@@ -105,10 +105,10 @@ class TaskService {
       if (userId == null) throw Exception('User not authenticated');
 
       final snapshot = await _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
           .where('category', isEqualTo: category)
-          .orderBy('dueDate', descending: false)
+          .orderBy('deadline', descending: false)
           .get();
 
       return snapshot.docs.map((doc) {
@@ -127,10 +127,10 @@ class TaskService {
       if (userId == null) throw Exception('User not authenticated');
 
       final snapshot = await _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .where('isCompleted', isEqualTo: false)
-          .orderBy('dueDate', descending: false)
+          .where('completed', isEqualTo: false)
+          .orderBy('deadline', descending: false)
           .get();
 
       return snapshot.docs.map((doc) {
@@ -149,9 +149,9 @@ class TaskService {
       if (userId == null) throw Exception('User not authenticated');
 
       final snapshot = await _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .where('isCompleted', isEqualTo: true)
+          .where('completed', isEqualTo: true)
           .orderBy('createdAt', descending: true)
           .get();
 
@@ -173,9 +173,9 @@ class TaskService {
       }
 
       return _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .orderBy('dueDate', descending: false)
+          .orderBy('deadline', descending: false)
           .snapshots()
           .map((snapshot) {
             return snapshot.docs.map((doc) {
@@ -197,10 +197,10 @@ class TaskService {
       }
 
       return _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .where('isCompleted', isEqualTo: false)
-          .orderBy('dueDate', descending: false)
+          .where('completed', isEqualTo: false)
+          .orderBy('deadline', descending: false)
           .snapshots()
           .map((snapshot) {
             return snapshot.docs.map((doc) {
@@ -228,11 +228,11 @@ class TaskService {
         );
       }
 
-      await _firestore.collection('tasks').doc(taskId).update({
+      await _firestore.collection('assignments').doc(taskId).update({
         'title': task.title,
         'description': task.description,
-        'isCompleted': task.isCompleted,
-        'dueDate': task.dueDate,
+        'completed': task.isCompleted,
+        'deadline': task.dueDate,
         'category': task.category,
         'priority': task.priority,
         'updatedAt': FieldValue.serverTimestamp(),
@@ -257,8 +257,8 @@ class TaskService {
         throw Exception('Permission denied');
       }
 
-      await _firestore.collection('tasks').doc(taskId).update({
-        'isCompleted': true,
+      await _firestore.collection('assignments').doc(taskId).update({
+        'completed': true,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -281,8 +281,8 @@ class TaskService {
         throw Exception('Permission denied');
       }
 
-      await _firestore.collection('tasks').doc(taskId).update({
-        'isCompleted': false,
+      await _firestore.collection('assignments').doc(taskId).update({
+        'completed': false,
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
@@ -309,7 +309,7 @@ class TaskService {
         );
       }
 
-      await _firestore.collection('tasks').doc(taskId).delete();
+      await _firestore.collection('assignments').doc(taskId).delete();
 
       debugPrint('✅ Task deleted: $taskId');
     } catch (e) {
@@ -325,9 +325,9 @@ class TaskService {
       if (userId == null) throw Exception('User not authenticated');
 
       final snapshot = await _firestore
-          .collection('tasks')
+          .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .where('isCompleted', isEqualTo: true)
+          .where('completed', isEqualTo: true)
           .get();
 
       for (var doc in snapshot.docs) {

@@ -1,8 +1,10 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:provider/provider.dart';
 import 'package:student_assignment_reminder_app/services/firestore_service.dart';
 import 'package:student_assignment_reminder_app/models/user_profile_model.dart';
+import 'package:student_assignment_reminder_app/providers/auth_provider.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -58,12 +60,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ),
               TextButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
+                onPressed: () async {
+                  await context.read<AuthProvider>().logout();
+                  if (!mounted) return;
+                  Navigator.pushAndRemoveUntil(
                     context,
                     MaterialPageRoute(
                       builder: (context) => const LoginScreen(),
                     ),
+                    (route) => false,
                   );
                 },
                 child: const Text(
