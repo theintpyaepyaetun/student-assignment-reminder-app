@@ -32,40 +32,40 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDemoKeyForTestingOnly12345678901234567',
-    appId: '1:123456789012:web:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'student-assignment-demo',
-    authDomain: 'student-assignment-demo.firebaseapp.com',
-    databaseURL: 'https://student-assignment-demo.firebaseio.com',
-    storageBucket: 'student-assignment-demo.appspot.com',
+    apiKey: 'AIzaSyAaXhNSOTHu8Df26Q_ykLCx6KfmCZ6Khjc',
+    appId: '1:752057448311:web:1765e5f144d254b8ff1372',
+    messagingSenderId: '752057448311',
+    projectId: 'student-assignment-reminder',
+    authDomain: 'student-assignment-reminder.firebaseapp.com',
+    databaseURL: 'https://student-assignment-reminder.firebaseio.com',
+    storageBucket: 'student-assignment-reminder.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDemoKeyForTestingOnly12345678901234567',
-    appId: '1:123456789012:android:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'student-assignment-demo',
-    databaseURL: 'https://student-assignment-demo.firebaseio.com',
-    storageBucket: 'student-assignment-demo.appspot.com',
+    apiKey: 'AIzaSyAaXhNSOTHu8Df26Q_ykLCx6KfmCZ6Khjc',
+    appId: '1:752057448311:android:1765e5f144d254b8ff1372',
+    messagingSenderId: '752057448311',
+    projectId: 'student-assignment-reminder',
+    databaseURL: 'https://student-assignment-reminder.firebaseio.com',
+    storageBucket: 'student-assignment-reminder.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDemoKeyForTestingOnly12345678901234567',
-    appId: '1:123456789012:ios:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'student-assignment-demo',
-    databaseURL: 'https://student-assignment-demo.firebaseio.com',
-    storageBucket: 'student-assignment-demo.appspot.com',
+    apiKey: 'AIzaSyAaXhNSOTHu8Df26Q_ykLCx6KfmCZ6Khjc',
+    appId: '1:752057448311:ios:1765e5f144d254b8ff1372',
+    messagingSenderId: '752057448311',
+    projectId: 'student-assignment-reminder',
+    databaseURL: 'https://student-assignment-reminder.firebaseio.com',
+    storageBucket: 'student-assignment-reminder.firebasestorage.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDemoKeyForTestingOnly12345678901234567',
-    appId: '1:123456789012:macos:abcdef1234567890abcdef',
-    messagingSenderId: '123456789012',
-    projectId: 'student-assignment-demo',
-    databaseURL: 'https://student-assignment-demo.firebaseio.com',
-    storageBucket: 'student-assignment-demo.appspot.com',
+    apiKey: 'AIzaSyAaXhNSOTHu8Df26Q_ykLCx6KfmCZ6Khjc',
+    appId: '1:752057448311:macos:1765e5f144d254b8ff1372',
+    messagingSenderId: '752057448311',
+    projectId: 'student-assignment-reminder',
+    databaseURL: 'https://student-assignment-reminder.firebaseio.com',
+    storageBucket: 'student-assignment-reminder.firebasestorage.app',
   );
 }
 
