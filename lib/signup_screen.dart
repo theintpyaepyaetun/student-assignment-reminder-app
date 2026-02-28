@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'login_screen.dart';
-import 'screens/task_list_screen.dart';
+import 'home_screen.dart';
 import 'providers/auth_provider.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -90,7 +90,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               );
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const TaskListScreen()),
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
               );
             } else if (authProvider.error != null) {
               ScaffoldMessenger.of(context).showSnackBar(

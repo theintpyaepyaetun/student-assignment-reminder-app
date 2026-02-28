@@ -61,6 +61,14 @@ class FirebaseService {
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ Sign up error [${e.code}]: ${e.message}');
       throw _handleAuthException(e);
+    } on TypeError catch (e) {
+      debugPrint('❌ Firebase plugin type error during sign up: $e');
+      throw Exception(
+        'Firebase plugin sync error detected. Please stop the app, run Flutter clean, rebuild, and try signing up again.',
+      );
+    } catch (e) {
+      debugPrint('❌ Unexpected sign up error: $e');
+      rethrow;
     }
   }
 
@@ -79,6 +87,11 @@ class FirebaseService {
     } on FirebaseAuthException catch (e) {
       debugPrint('❌ Firebase Auth Error [${e.code}]: ${e.message}');
       throw _handleAuthException(e);
+    } on TypeError catch (e) {
+      debugPrint('❌ Firebase plugin type error during login: $e');
+      throw Exception(
+        'Firebase plugin sync error detected. Please stop the app, run Flutter clean, rebuild, and try logging in again.',
+      );
     } catch (e) {
       debugPrint('❌ Unexpected error during login: $e');
       rethrow;

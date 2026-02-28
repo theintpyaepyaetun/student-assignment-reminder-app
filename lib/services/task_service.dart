@@ -83,12 +83,11 @@ class TaskService {
       final snapshot = await _firestore
           .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .orderBy('deadline', descending: false)
           .get();
 
       final tasks = snapshot.docs.map((doc) {
         return Task.fromMap(doc.data(), doc.id);
-      }).toList();
+      }).toList()..sort((a, b) => a.dueDate.compareTo(b.dueDate));
 
       debugPrint('✅ Retrieved ${tasks.length} tasks');
       return tasks;
@@ -108,12 +107,13 @@ class TaskService {
           .collection('assignments')
           .where('userId', isEqualTo: userId)
           .where('category', isEqualTo: category)
-          .orderBy('deadline', descending: false)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final tasks = snapshot.docs.map((doc) {
         return Task.fromMap(doc.data(), doc.id);
-      }).toList();
+      }).toList()..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+      return tasks;
     } catch (e) {
       debugPrint('❌ Error getting tasks by category: $e');
       rethrow;
@@ -130,12 +130,13 @@ class TaskService {
           .collection('assignments')
           .where('userId', isEqualTo: userId)
           .where('completed', isEqualTo: false)
-          .orderBy('deadline', descending: false)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final tasks = snapshot.docs.map((doc) {
         return Task.fromMap(doc.data(), doc.id);
-      }).toList();
+      }).toList()..sort((a, b) => a.dueDate.compareTo(b.dueDate));
+
+      return tasks;
     } catch (e) {
       debugPrint('❌ Error getting incomplete tasks: $e');
       rethrow;
@@ -152,12 +153,13 @@ class TaskService {
           .collection('assignments')
           .where('userId', isEqualTo: userId)
           .where('completed', isEqualTo: true)
-          .orderBy('createdAt', descending: true)
           .get();
 
-      return snapshot.docs.map((doc) {
+      final tasks = snapshot.docs.map((doc) {
         return Task.fromMap(doc.data(), doc.id);
-      }).toList();
+      }).toList()..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+      return tasks;
     } catch (e) {
       debugPrint('❌ Error getting completed tasks: $e');
       rethrow;
@@ -175,12 +177,14 @@ class TaskService {
       return _firestore
           .collection('assignments')
           .where('userId', isEqualTo: userId)
-          .orderBy('deadline', descending: false)
           .snapshots()
           .map((snapshot) {
-            return snapshot.docs.map((doc) {
+            final tasks = snapshot.docs.map((doc) {
               return Task.fromMap(doc.data(), doc.id);
             }).toList();
+
+            tasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+            return tasks;
           });
     } catch (e) {
       debugPrint('❌ Error streaming tasks: $e');
@@ -200,12 +204,14 @@ class TaskService {
           .collection('assignments')
           .where('userId', isEqualTo: userId)
           .where('completed', isEqualTo: false)
-          .orderBy('deadline', descending: false)
           .snapshots()
           .map((snapshot) {
-            return snapshot.docs.map((doc) {
+            final tasks = snapshot.docs.map((doc) {
               return Task.fromMap(doc.data(), doc.id);
             }).toList();
+
+            tasks.sort((a, b) => a.dueDate.compareTo(b.dueDate));
+            return tasks;
           });
     } catch (e) {
       debugPrint('❌ Error streaming incomplete tasks: $e');
@@ -354,7 +360,7 @@ class TaskService {
       for (var taskId in taskIds) {
         final task = await getTaskById(taskId);
         if (task != null && task.userId == userId) {
-          batch.delete(_firestore.collection('tasks').doc(taskId));
+          batch.delete(_firestore.collection('assignments').doc(taskId));
         }
       }
 
@@ -377,8 +383,8 @@ class TaskService {
       for (var taskId in taskIds) {
         final task = await getTaskById(taskId);
         if (task != null && task.userId == userId) {
-          batch.update(_firestore.collection('tasks').doc(taskId), {
-            'isCompleted': true,
+          batch.update(_firestore.collection('assignments').doc(taskId), {
+            'completed': true,
             'updatedAt': FieldValue.serverTimestamp(),
           });
         }
@@ -400,21 +406,10 @@ class TaskService {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      final allSnapshot = await _firestore
-          .collection('tasks')
-          .where('userId', isEqualTo: userId)
-          .count()
-          .get();
+      final allTasks = await getAllTasks();
 
-      final completedSnapshot = await _firestore
-          .collection('tasks')
-          .where('userId', isEqualTo: userId)
-          .where('isCompleted', isEqualTo: true)
-          .count()
-          .get();
-
-      final total = allSnapshot.count ?? 0;
-      final completed = completedSnapshot.count ?? 0;
+      final total = allTasks.length;
+      final completed = allTasks.where((task) => task.isCompleted).length;
       final pending = total - completed;
 
       return {'total': total, 'completed': completed, 'pending': pending};
@@ -430,17 +425,12 @@ class TaskService {
       final userId = currentUserId;
       if (userId == null) throw Exception('User not authenticated');
 
-      final snapshot = await _firestore
-          .collection('tasks')
-          .where('userId', isEqualTo: userId)
-          .where('isCompleted', isEqualTo: false)
-          .where('priority', isEqualTo: 3)
-          .orderBy('dueDate', descending: false)
-          .get();
+      final tasks = await getAllTasks();
 
-      return snapshot.docs.map((doc) {
-        return Task.fromMap(doc.data(), doc.id);
-      }).toList();
+      return tasks
+          .where((task) => !task.isCompleted && (task.priority ?? 0) >= 3)
+          .toList()
+        ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
     } catch (e) {
       debugPrint('❌ Error getting high priority tasks: $e');
       rethrow;

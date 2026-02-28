@@ -38,7 +38,8 @@ class AuthProvider extends ChangeNotifier {
   AuthState _state = AuthState();
 
   AuthProvider() {
-    _checkAuthStatus();
+    // Don't call _checkAuthStatus() here - it blocks UI startup
+    // Will be called when needed
   }
 
   AuthState get state => _state;
@@ -48,6 +49,12 @@ class AuthProvider extends ChangeNotifier {
   String? get error => _state.error;
 
   bool get isDemoMode => !_firebaseService.isConfigured;
+
+  // Initialize auth status asynchronously (called from LoginScreen)
+  Future<void> initializeAuthStatus() async {
+    if (_state.isAuthenticated || _state.isLoading) return;
+    await _checkAuthStatus();
+  }
 
   void _setState(AuthState newState) {
     _state = newState;

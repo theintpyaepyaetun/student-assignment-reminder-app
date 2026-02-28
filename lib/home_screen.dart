@@ -6,9 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'add_assignment_screen.dart';
 import 'settings_screen.dart';
 import 'detail_screen.dart';
-import 'providers/assignment_provider.dart';
 import 'providers/auth_provider.dart';
-import 'services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,36 +16,92 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Map<String, dynamic>> assignments = [
-    {
-      "title": "Math Homework",
-      "deadline": "Feb 25",
-      "completed": false,
-      "description": "Complete exercises 1-50 from Chapter 5",
-      "priority": "high",
-    },
-    {
-      "title": "English Essay",
-      "deadline": "Mar 1",
-      "completed": true,
-      "description": "Write a 2000-word essay on Shakespeare's influence",
-      "priority": "medium",
-    },
-    {
-      "title": "Mobile App Project",
-      "deadline": "Mar 10",
-      "completed": false,
-      "description": "Build a Flutter app following the design requirements",
-      "priority": "high",
-    },
-    {
-      "title": "History Presentation",
-      "deadline": "Feb 28",
-      "completed": false,
-      "description": "Prepare 15-20 slides about the Industrial Revolution",
-      "priority": "medium",
-    },
-  ];
+  List<Map<String, dynamic>> assignments = [];
+
+  Future<void> _loadAssignmentsFromFirestore() async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) return;
+
+      final snapshot = await FirebaseFirestore.instance
+          .collection('assignments')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      final loaded = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final rawDeadline = data['deadline'];
+        final rawPriority = data['priority'];
+
+        String deadlineDisplay;
+        if (rawDeadline is Timestamp) {
+          final date = rawDeadline.toDate();
+          deadlineDisplay =
+              '${_monthName(date.month)} ${date.day}, ${date.year}';
+        } else {
+          deadlineDisplay = (rawDeadline ?? '').toString();
+        }
+
+        String priorityDisplay;
+        if (rawPriority is int) {
+          if (rawPriority >= 3) {
+            priorityDisplay = 'high';
+          } else if (rawPriority <= 1) {
+            priorityDisplay = 'low';
+          } else {
+            priorityDisplay = 'medium';
+          }
+        } else {
+          priorityDisplay = (rawPriority ?? 'medium').toString().toLowerCase();
+        }
+
+        return <String, dynamic>{
+          'id': doc.id,
+          'title': data['title'] ?? '',
+          'deadline': deadlineDisplay,
+          'description': data['description'] ?? '',
+          'completed': data['completed'] ?? false,
+          'priority': priorityDisplay,
+          'createdAt': data['createdAt'],
+          'updatedAt': data['updatedAt'],
+          'userId': data['userId'],
+        };
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          assignments = loaded;
+        });
+      }
+    } catch (e) {
+      debugPrint('❌ Error loading assignments from Firestore: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load assignments: $e'),
+          backgroundColor: const Color(0xFFEF5350),
+        ),
+      );
+    }
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return months[(month - 1).clamp(0, 11)];
+  }
 
   void addAssignment(Map<String, dynamic> assignment) {
     // Save to Firestore first to get document ID
@@ -214,10 +268,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Load assignments from backend after first frame to safely access context
+    // Load assignments from Firestore after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<AssignmentProvider>().loadAssignments();
+      _loadAssignmentsFromFirestore();
     });
   }
 

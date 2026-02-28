@@ -2,7 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'signup_screen.dart';
-import 'screens/task_list_screen.dart';
+import 'home_screen.dart';
 import 'providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,6 +15,15 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize auth status lazily when screen is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AuthProvider>().initializeAuthStatus();
+    });
+  }
 
   void login() {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
@@ -39,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (mounted && context.read<AuthProvider>().isAuthenticated) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const TaskListScreen()),
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
             );
           }
         });
