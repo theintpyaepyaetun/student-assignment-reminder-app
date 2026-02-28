@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/assignment_provider.dart';
+import 'providers/task_provider.dart';
 import 'services/firebase_service.dart';
 
 void main() async {
@@ -20,6 +21,7 @@ class StudentApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => AssignmentProvider()),
+        ChangeNotifierProvider(create: (_) => TaskProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,

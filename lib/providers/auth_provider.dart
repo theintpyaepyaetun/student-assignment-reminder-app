@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:student_assignment_reminder_app/models/user_model.dart';
+import 'package:student_assignment_reminder_app/models/user_profile_model.dart';
 import 'package:student_assignment_reminder_app/services/firebase_service.dart';
 import 'package:student_assignment_reminder_app/services/local_auth_service.dart';
+import 'package:student_assignment_reminder_app/services/firestore_service.dart';
 
 // Auth state
 class AuthState {
@@ -34,6 +36,7 @@ class AuthState {
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
+  final FirestoreService _firestoreService = FirestoreService();
   AuthState _state = AuthState();
 
   AuthProvider() {
@@ -63,30 +66,61 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // Use local authentication (works offline and for testing)
-      final result = await LocalAuthService.signUp(
+      if (isDemoMode) {
+        final result = await LocalAuthService.signUp(
+          email: email,
+          password: password,
+        );
+
+        if (result['success'] == true) {
+          final registeredEmail = result['email']?.toString() ?? email;
+          _setState(
+            _state.copyWith(
+              isAuthenticated: true,
+              user: User(
+                email: registeredEmail,
+                name: name,
+                createdAt: DateTime.now().toIso8601String(),
+              ),
+              isLoading: false,
+            ),
+          );
+          return;
+        }
+
+        final errorMsg = result['error']?.toString() ?? 'Registration failed';
+        _setState(_state.copyWith(isLoading: false, error: errorMsg));
+        return;
+      }
+
+      final credential = await _firebaseService.signUp(
         email: email,
         password: password,
       );
 
-      if (result['success'] == true) {
-        _setState(
-          _state.copyWith(
-            isAuthenticated: true,
-            user: User(
-              email: result['email'] as String? ?? email,
-              name: name,
-              createdAt: DateTime.now().toIso8601String(),
-            ),
-            isLoading: false,
+      final userId = credential.user!.uid;
+
+      // Create user document in Firestore
+      await _firestoreService.createUserDocument(
+        uid: userId,
+        email: email,
+        username: name,
+      );
+
+      await LocalAuthService.signUp(email: email, password: password);
+
+      _setState(
+        _state.copyWith(
+          isAuthenticated: true,
+          user: User(
+            email: email,
+            name: name,
+            createdAt: DateTime.now().toIso8601String(),
           ),
-        );
-        return;
-      } else {
-        final errorMsg = result['error'] as String? ?? 'Registration failed';
-        _setState(_state.copyWith(isLoading: false, error: errorMsg));
-        return;
-      }
+          isLoading: false,
+        ),
+      );
+      return;
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
@@ -95,18 +129,60 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // Use local authentication (works offline and for testing)
+      try {
+        final credential = await _firebaseService.login(
+          email: email,
+          password: password,
+        );
+
+        final firebaseUser = credential.user;
+
+        // Fetch user profile from Firestore
+        UserProfile? userProfile;
+        if (firebaseUser != null) {
+          try {
+            userProfile = await _firestoreService.getUserProfile(
+              firebaseUser.uid,
+            );
+          } catch (e) {
+            debugPrint('⚠️ Failed to fetch Firestore profile: $e');
+          }
+        }
+
+        _setState(
+          _state.copyWith(
+            isAuthenticated: true,
+            user: User(
+              email: userProfile?.email ?? firebaseUser?.email ?? email,
+              name:
+                  userProfile?.username ?? firebaseUser?.displayName ?? 'User',
+              createdAt:
+                  userProfile?.createdAt.toIso8601String() ??
+                  firebaseUser?.metadata.creationTime?.toIso8601String() ??
+                  DateTime.now().toIso8601String(),
+            ),
+            isLoading: false,
+          ),
+        );
+        return;
+      } catch (firebaseError) {
+        debugPrint(
+          '⚠️ Firebase login failed, falling back to local login: $firebaseError',
+        );
+      }
+
       final result = await LocalAuthService.signIn(
         email: email,
         password: password,
       );
 
       if (result['success'] == true) {
+        final loggedInEmail = result['email']?.toString() ?? email;
         _setState(
           _state.copyWith(
             isAuthenticated: true,
             user: User(
-              email: result['email'] as String? ?? email,
+              email: loggedInEmail,
               name: 'User',
               createdAt: DateTime.now().toIso8601String(),
             ),
@@ -114,17 +190,20 @@ class AuthProvider extends ChangeNotifier {
           ),
         );
         return;
-      } else {
-        final errorMsg = result['error'] as String? ?? 'Authentication failed';
-        _setState(_state.copyWith(isLoading: false, error: errorMsg));
-        return;
       }
+
+      final errorMsg = result['error']?.toString() ?? 'Authentication failed';
+      _setState(_state.copyWith(isLoading: false, error: errorMsg));
+      return;
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 
   Future<void> logout() async {
+    try {
+      await _firebaseService.logout();
+    } catch (_) {}
     await LocalAuthService.signOut();
     _setState(AuthState());
   }

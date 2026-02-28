@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 
 class FirebaseService {
@@ -103,6 +106,61 @@ class FirebaseService {
   }
 
   // Database Methods
+  String userKeyFromEmail(String email) {
+    final normalized = email.trim().toLowerCase();
+    return base64Url.encode(utf8.encode(normalized)).replaceAll('=', '');
+  }
+
+  Future<void> saveUserProfile({
+    required String userId,
+    required String email,
+    required String name,
+    String source = 'firebase-auth',
+  }) async {
+    try {
+      // Try SDK first
+      await database.ref('users/$userId/profile').set({
+        'email': email,
+        'name': name,
+        'source': source,
+        'createdAt': DateTime.now().toIso8601String(),
+      });
+      debugPrint('✅ User profile saved to Firebase: $email');
+    } catch (e) {
+      debugPrint('⚠️  SDK write failed, trying REST API: $e');
+
+      // Fallback to REST API
+      try {
+        final projectId = DefaultFirebaseOptions.currentPlatform.projectId;
+        final url =
+            'https://$projectId-default-rtdb.firebaseio.com/users/$userId/profile.json';
+
+        final response = await http.put(
+          Uri.parse(url),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email,
+            'name': name,
+            'source': source,
+            'createdAt': DateTime.now().toIso8601String(),
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          debugPrint('✅ User profile saved via REST API: $email');
+        } else {
+          debugPrint(
+            '❌ REST API failed: ${response.statusCode} ${response.body}',
+          );
+          throw 'Failed to save user profile via REST API';
+        }
+      } catch (restError) {
+        debugPrint('❌ Both SDK and REST failed: $restError');
+        rethrow;
+      }
+    }
+  }
+
   Future<void> saveAssignment({
     required String userId,
     required String assignmentId,
@@ -114,6 +172,32 @@ class FirebaseService {
           .set(assignmentData);
     } catch (e) {
       throw 'Failed to save assignment: $e';
+    }
+  }
+
+  /// Add a new assignment to Firebase (creates new entry with auto ID)
+  Future<void> addAssignment(
+    String userId,
+    Map<String, dynamic> assignmentData,
+  ) async {
+    try {
+      // Add timestamp when assignment is created
+      final dataWithTimestamp = {
+        ...assignmentData,
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+
+      // Use push() to auto-generate a unique ID
+      await database
+          .ref('users/$userId/assignments')
+          .push()
+          .set(dataWithTimestamp);
+
+      debugPrint('✅ Assignment added to Firebase for user: $userId');
+    } catch (e) {
+      debugPrint('❌ Error adding assignment: $e');
+      throw 'Failed to add assignment: $e';
     }
   }
 

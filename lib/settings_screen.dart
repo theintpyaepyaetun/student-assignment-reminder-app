@@ -1,5 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:student_assignment_reminder_app/services/firestore_service.dart';
+import 'package:student_assignment_reminder_app/models/user_profile_model.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -10,7 +13,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  bool notificationsEnabled = true;
+  final FirestoreService _firestoreService = FirestoreService();
 
   void logout() {
     showDialog(
@@ -81,6 +84,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = firebase_auth.FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -113,160 +118,120 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
 
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 100),
+          // Use StreamBuilder to get real-time user profile data
+          StreamBuilder<UserProfile?>(
+            stream: _firestoreService.streamCurrentUserProfile(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                );
+              }
 
-                // Profile Header
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1.5,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            // Avatar
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Colors.white.withOpacity(0.3),
-                                    Colors.white.withOpacity(0.1),
-                                  ],
-                                ),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
-                                  width: 2,
-                                ),
-                              ),
-                              child: Icon(
-                                Icons.person_rounded,
-                                size: 40,
-                                color: Colors.white.withOpacity(0.8),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
+              final userProfile = snapshot.data;
+              final username =
+                  userProfile?.username ??
+                  currentUser?.displayName ??
+                  'Student User';
+              final email =
+                  userProfile?.email ??
+                  currentUser?.email ??
+                  'student@university.edu';
+              final notifications =
+                  userProfile?.preferences?['notifications'] as bool? ?? true;
 
-                            // Name
-                            const Text(
-                              "Student User",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.3,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
+              return SingleChildScrollView(
+                child: Column(
+                  children: [
+                    const SizedBox(height: 100),
 
-                            // Email
-                            Text(
-                              "student@university.edu",
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.6),
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Preferences Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Preferences",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Notifications Toggle
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
+                    // Profile Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
-                            ),
+                            padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                               color: Colors.white.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(20),
                               border: Border.all(
                                 color: Colors.white.withOpacity(0.2),
                                 width: 1.5,
                               ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.notifications_outlined,
-                                      color: Colors.white.withOpacity(0.7),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Text(
-                                      "Enable Notifications",
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
                                 ),
-                                Transform.scale(
-                                  scale: 1.2,
-                                  child: Switch(
-                                    value: notificationsEnabled,
-                                    onChanged: (value) {
-                                      setState(
-                                        () => notificationsEnabled = value,
-                                      );
-                                    },
-                                    activeColor: const Color(0xFF00C851),
-                                    inactiveTrackColor: Colors.white
-                                        .withOpacity(0.15),
+                              ],
+                            ),
+                            child: Column(
+                              children: [
+                                // Avatar
+                                Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        Colors.white.withOpacity(0.3),
+                                        Colors.white.withOpacity(0.1),
+                                      ],
+                                    ),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  child: userProfile?.photoUrl != null
+                                      ? ClipOval(
+                                          child: Image.network(
+                                            userProfile!.photoUrl!,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) {
+                                                  return Icon(
+                                                    Icons.person_rounded,
+                                                    size: 40,
+                                                    color: Colors.white
+                                                        .withOpacity(0.8),
+                                                  );
+                                                },
+                                          ),
+                                        )
+                                      : Icon(
+                                          Icons.person_rounded,
+                                          size: 40,
+                                          color: Colors.white.withOpacity(0.8),
+                                        ),
+                                ),
+                                const SizedBox(height: 18),
+
+                                // Name
+                                Text(
+                                  username,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+
+                                // Email
+                                Text(
+                                  email,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.6),
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: 0.2,
                                   ),
                                 ),
                               ],
@@ -274,63 +239,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
+                    ),
+                    const SizedBox(height: 28),
 
-                // About Section
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "About",
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.7),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                    // Preferences Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Preferences",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
 
-                      // App Version
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.12),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1.5,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
+                          // Notifications Toggle
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Icon(
-                                      Icons.info_outline,
-                                      color: Colors.white.withOpacity(0.7),
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 14),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
+                                    Row(
                                       children: [
+                                        Icon(
+                                          Icons.notifications_outlined,
+                                          color: Colors.white.withOpacity(0.7),
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 14),
                                         Text(
-                                          "App Version",
+                                          "Enable Notifications",
                                           style: TextStyle(
                                             color: Colors.white.withOpacity(
                                               0.9,
@@ -339,82 +299,191 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          "1.0.0",
-                                          style: TextStyle(
-                                            color: Colors.white.withOpacity(
-                                              0.5,
-                                            ),
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w400,
-                                          ),
-                                        ),
                                       ],
+                                    ),
+                                    Transform.scale(
+                                      scale: 1.2,
+                                      child: Switch(
+                                        value: notifications,
+                                        onChanged: (value) async {
+                                          // Update notification preference in Firestore
+                                          try {
+                                            await _firestoreService
+                                                .updatePreference(
+                                                  'notifications',
+                                                  value,
+                                                );
+                                          } catch (e) {
+                                            if (mounted) {
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    'Failed to update preference: $e',
+                                                  ),
+                                                  backgroundColor: Colors.red,
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        activeColor: const Color(0xFF00C851),
+                                        inactiveTrackColor: Colors.white
+                                            .withOpacity(0.15),
+                                      ),
                                     ),
                                   ],
                                 ),
-                                Icon(
-                                  Icons.arrow_forward_ios,
-                                  color: Colors.white.withOpacity(0.4),
-                                  size: 16,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 40),
-
-                // Logout Button
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: logout,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(
-                          0xFFEF5350,
-                        ).withOpacity(0.25),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: BorderSide(
-                            color: const Color(0xFFEF5350).withOpacity(0.4),
-                            width: 1.5,
-                          ),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.logout,
-                            color: const Color(0xFFEF5350).withOpacity(0.9),
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Logout",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFEF5350).withOpacity(0.9),
-                              letterSpacing: 0.3,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 32),
+
+                    // About Section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "About",
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // App Version
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.2),
+                                    width: 1.5,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info_outline,
+                                          color: Colors.white.withOpacity(0.7),
+                                          size: 20,
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              "App Version",
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(
+                                                  0.9,
+                                                ),
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              "1.0.0",
+                                              style: TextStyle(
+                                                color: Colors.white.withOpacity(
+                                                  0.5,
+                                                ),
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      color: Colors.white.withOpacity(0.4),
+                                      size: 16,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // Logout Button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: logout,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(
+                              0xFFEF5350,
+                            ).withOpacity(0.25),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                              side: BorderSide(
+                                color: const Color(0xFFEF5350).withOpacity(0.4),
+                                width: 1.5,
+                              ),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.logout,
+                                color: const Color(0xFFEF5350).withOpacity(0.9),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                "Logout",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(
+                                    0xFFEF5350,
+                                  ).withOpacity(0.9),
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
                 ),
-                const SizedBox(height: 40),
-              ],
-            ),
+              );
+            },
           ),
         ],
       ),

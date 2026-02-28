@@ -1,11 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'add_assignment_screen.dart';
 import 'settings_screen.dart';
 import 'detail_screen.dart';
 import 'providers/assignment_provider.dart';
-import 'providers/auth_provider.dart';
+import 'providers/auth_provider.dart' as app_auth;
+import 'services/firebase_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -46,28 +49,152 @@ class _HomeScreenState extends State<HomeScreen> {
     },
   ];
 
-  void addAssignment(Map<String, dynamic> assignment) {
-    setState(() {
-      assignments.add(assignment);
-    });
+  void addAssignment(Map<String, dynamic> assignment) async {
+    // Save to Firebase
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error: User not authenticated'),
+            backgroundColor: Color(0xFFEF5350),
+          ),
+        );
+        return;
+      }
+
+      // Save to Firebase
+      final firebaseService = FirebaseService();
+      await firebaseService.addAssignment(userId, assignment);
+
+      // Update local state
+      if (!mounted) return;
+      setState(() {
+        assignments.add(assignment);
+      });
+
+      // Show success message
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Assignment saved to Firebase'),
+          backgroundColor: Color(0xFF00C851),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error saving assignment: $e'),
+          backgroundColor: Color(0xFFEF5350),
+        ),
+      );
+    }
   }
 
-  void updateAssignment(int index, Map<String, dynamic> assignment) {
-    setState(() {
-      assignments[index] = assignment;
-    });
+  void updateAssignment(int index, Map<String, dynamic> assignment) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error: User not authenticated'),
+            backgroundColor: Color(0xFFEF5350),
+          ),
+        );
+        return;
+      }
+
+      // Update local state
+      if (!mounted) return;
+      setState(() {
+        assignments[index] = assignment;
+      });
+
+      // TODO: Update in Firebase
+      // This requires storing the assignment ID from Firebase
+      // For now, data is synced via real-time listener
+      debugPrint('✅ Assignment updated locally');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error updating assignment: $e'),
+          backgroundColor: Color(0xFFEF5350),
+        ),
+      );
+    }
   }
 
-  void deleteAssignment(int index) {
-    setState(() {
-      assignments.removeAt(index);
-    });
+  void deleteAssignment(int index) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error: User not authenticated'),
+            backgroundColor: Color(0xFFEF5350),
+          ),
+        );
+        return;
+      }
+
+      // Update local state
+      if (!mounted) return;
+      setState(() {
+        assignments.removeAt(index);
+      });
+
+      // TODO: Delete from Firebase
+      // This requires storing the assignment ID from Firebase
+      // For now, data is synced via real-time listener
+      debugPrint('✅ Assignment deleted locally');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error deleting assignment: $e'),
+          backgroundColor: Color(0xFFEF5350),
+        ),
+      );
+    }
   }
 
-  void toggleComplete(int index) {
-    setState(() {
-      assignments[index]["completed"] = !assignments[index]["completed"];
-    });
+  void toggleComplete(int index) async {
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error: User not authenticated'),
+            backgroundColor: Color(0xFFEF5350),
+          ),
+        );
+        return;
+      }
+
+      // Update local state
+      if (!mounted) return;
+      setState(() {
+        assignments[index]["completed"] = !assignments[index]["completed"];
+      });
+
+      // TODO: Update completion status in Firebase
+      // This requires storing the assignment ID from Firebase
+      debugPrint('✅ Assignment completion toggled');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error toggling assignment: $e'),
+          backgroundColor: Color(0xFFEF5350),
+        ),
+      );
+    }
   }
 
   int get completedCount => assignments.where((a) => a["completed"]).length;
@@ -138,9 +265,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 120),
 
                 // Demo mode banner
-                Consumer<AuthProvider>(
+                Consumer<app_auth.AuthProvider>(
                   builder: (context, auth, _) {
-                    if (auth.isDemoMode) {
+                    if (auth.isDemoMode ?? false) {
                       return Container(
                         width: double.infinity,
                         color: Colors.yellow.withOpacity(0.9),

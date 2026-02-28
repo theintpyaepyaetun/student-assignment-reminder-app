@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -6,6 +8,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 class LocalAuthService {
   static const String _usersKey = 'app_users';
   static const String _currentUserKey = 'app_current_user';
+
+  static Map<String, String> _parseLegacyUsers(String raw) {
+    final users = <String, String>{};
+    if (raw.isEmpty) return users;
+
+    for (final entry in raw.split(',')) {
+      if (entry.isEmpty || !entry.contains(':')) continue;
+      final separatorIndex = entry.indexOf(':');
+      final email = entry.substring(0, separatorIndex).trim();
+      final password = entry.substring(separatorIndex + 1);
+      if (email.isNotEmpty) {
+        users[email] = password;
+      }
+    }
+
+    return users;
+  }
+
+  static Map<String, String> _readUsers(String raw) {
+    if (raw.isEmpty) return <String, String>{};
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return decoded.map(
+          (key, value) => MapEntry(key.toString(), value.toString()),
+        );
+      }
+    } catch (_) {
+      return _parseLegacyUsers(raw);
+    }
+
+    return _parseLegacyUsers(raw);
+  }
 
   /// Sign up locally (stores credentials in SharedPreferences for demo)
   static Future<Map<String, dynamic>> signUp({
@@ -16,10 +52,8 @@ class LocalAuthService {
       debugPrint('📝 Local Auth: Creating account for $email');
 
       final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString(_usersKey) ?? '{}';
-      final Map<String, dynamic> users = Map.from(
-        (usersJson.isNotEmpty ? usersJson.split(',') : []).asMap(),
-      );
+      final usersRaw = prefs.getString(_usersKey) ?? '';
+      final users = _readUsers(usersRaw);
 
       // Check if user already exists
       if (users.containsKey(email)) {
@@ -29,17 +63,14 @@ class LocalAuthService {
 
       // Store user (in real app, this would be hashed)
       users[email] = password;
-      await prefs.setString(
-        _usersKey,
-        users.entries.map((e) => '${e.key}:${e.value}').join(','),
-      );
+      await prefs.setString(_usersKey, jsonEncode(users));
 
       debugPrint('✅ Local Auth: Account created!');
-      return {
+      return <String, dynamic>{
         'success': true,
         'email': email,
         'idToken': 'local_token_$email',
-        'localId': email.hashCode.toString(),
+        'localId': email.hashCode.abs().toString(),
       };
     } catch (e) {
       debugPrint('❌ Local Auth Exception: $e');
@@ -56,9 +87,9 @@ class LocalAuthService {
       debugPrint('🔐 Local Auth: Attempting login for $email');
 
       final prefs = await SharedPreferences.getInstance();
-      final usersJson = prefs.getString(_usersKey) ?? '';
+      final usersRaw = prefs.getString(_usersKey) ?? '';
 
-      if (usersJson.isEmpty) {
+      if (usersRaw.isEmpty) {
         debugPrint('❌ Local Auth: No users registered');
         return {
           'success': false,
@@ -66,19 +97,8 @@ class LocalAuthService {
         };
       }
 
-      // Parse users
-      final usersList = usersJson.split(',');
-      String? storedPassword;
-
-      for (var userEntry in usersList) {
-        if (userEntry.isNotEmpty && userEntry.contains(':')) {
-          final parts = userEntry.split(':');
-          if (parts[0] == email) {
-            storedPassword = parts[1];
-            break;
-          }
-        }
-      }
+      final users = _readUsers(usersRaw);
+      final storedPassword = users[email];
 
       if (storedPassword == null) {
         debugPrint('❌ Local Auth: User not found');
@@ -94,11 +114,11 @@ class LocalAuthService {
       await prefs.setString(_currentUserKey, email);
 
       debugPrint('✅ Local Auth: Login successful!');
-      return {
+      return <String, dynamic>{
         'success': true,
         'email': email,
         'idToken': 'local_token_$email',
-        'localId': email.hashCode.toString(),
+        'localId': email.hashCode.abs().toString(),
       };
     } catch (e) {
       debugPrint('❌ Local Auth Exception: $e');
