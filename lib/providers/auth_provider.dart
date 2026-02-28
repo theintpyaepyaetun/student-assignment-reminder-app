@@ -63,14 +63,18 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // if Firebase isn't configured yet, just fake a registration
-      if (!_firebaseService.isConfigured) {
-        await Future.delayed(const Duration(milliseconds: 300));
+      // Use REST API for sign up
+      final result = await FirebaseRestAuth.signUp(
+        email: email,
+        password: password,
+      );
+
+      if (result['success'] == true) {
         _setState(
           _state.copyWith(
             isAuthenticated: true,
             user: User(
-              email: email,
+              email: result['email'] as String? ?? email,
               name: name,
               createdAt: DateTime.now().toIso8601String(),
             ),
@@ -78,20 +82,11 @@ class AuthProvider extends ChangeNotifier {
           ),
         );
         return;
+      } else {
+        final errorMsg = result['error'] as String? ?? 'Registration failed';
+        _setState(_state.copyWith(isLoading: false, error: errorMsg));
+        return;
       }
-      await _firebaseService.signUp(email: email, password: password);
-
-      _setState(
-        _state.copyWith(
-          isAuthenticated: true,
-          user: User(
-            email: email,
-            name: name,
-            createdAt: DateTime.now().toIso8601String(),
-          ),
-          isLoading: false,
-        ),
-      );
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
@@ -100,54 +95,29 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // First try Firebase SDK
-      try {
-        final userCredential = await _firebaseService.login(
-          email: email,
-          password: password,
-        );
+      // Try REST API first (more reliable than Firebase SDK on emulator)
+      final result = await FirebaseRestAuth.signIn(
+        email: email,
+        password: password,
+      );
 
-        final firebaseUser = userCredential.user;
-        if (firebaseUser != null) {
-          _setState(
-            _state.copyWith(
-              isAuthenticated: true,
-              user: User(
-                email: firebaseUser.email ?? email,
-                name: firebaseUser.displayName ?? 'User',
-                createdAt:
-                    firebaseUser.metadata.creationTime?.toIso8601String() ?? '',
-              ),
-              isLoading: false,
+      if (result['success'] == true) {
+        _setState(
+          _state.copyWith(
+            isAuthenticated: true,
+            user: User(
+              email: result['email'] as String? ?? email,
+              name: 'User',
+              createdAt: DateTime.now().toIso8601String(),
             ),
-          );
-          return;
-        }
-      } catch (sdkError) {
-        // If SDK fails, try REST API fallback
-        debugPrint('⚠️ Firebase SDK failed, trying REST API: $sdkError');
-
-        final result = await FirebaseRestAuth.signIn(
-          email: email,
-          password: password,
+            isLoading: false,
+          ),
         );
-
-        if (result['success'] == true) {
-          _setState(
-            _state.copyWith(
-              isAuthenticated: true,
-              user: User(
-                email: result['email'] ?? email,
-                name: 'User',
-                createdAt: DateTime.now().toIso8601String(),
-              ),
-              isLoading: false,
-            ),
-          );
-          return;
-        } else {
-          throw Exception(result['error'] ?? 'Authentication failed');
-        }
+        return;
+      } else {
+        final errorMsg = result['error'] as String? ?? 'Authentication failed';
+        _setState(_state.copyWith(isLoading: false, error: errorMsg));
+        return;
       }
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
