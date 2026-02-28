@@ -14,35 +14,26 @@ class FirebaseService {
   FirebaseService._internal();
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
-  static final FirebaseDatabase _database = FirebaseDatabase.instance;
+  static FirebaseDatabase? _database;
+
+  // Get database instance lazily (only when needed)
+  static FirebaseDatabase get database {
+    _database ??= FirebaseDatabase.instance;
+    return _database!;
+  }
 
   // Initialize Firebase
   static Future<void> initialize() async {
-    // check if options are still placeholders before attempting to initialize
-    if (!_instance.isConfigured) {
-      debugPrint(
-        '⚠️ FirebaseService.initialize(): the FirebaseOptions look like the default placeholders.\n'
-        'Authentication and database calls will be mocked until you provide real config.\n'
-        'See FIREBASE_SETUP.md for instructions.',
-      );
-      return;
-    }
-
-    // Only initialize Firebase if we have real credentials
     try {
+      // Initialize Firebase with the platform-specific options
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
       debugPrint('✅ Firebase initialized successfully');
-
-      // Try to enable offline persistence for database (optional, won't fail if DB doesn't exist)
-      try {
-        _database.setPersistenceEnabled(true);
-        debugPrint('✅ Database persistence enabled');
-      } catch (e) {
-        debugPrint('⚠️ Could not enable database persistence: $e');
-        // This is okay - database might not be created yet
-      }
+      debugPrint('✅ Firebase Auth ready');
+      debugPrint(
+        '✅ Project: ${DefaultFirebaseOptions.currentPlatform.projectId}',
+      );
     } catch (e) {
       debugPrint('❌ Firebase initialization error: $e');
       rethrow;
@@ -57,14 +48,15 @@ class FirebaseService {
     required String password,
   }) async {
     try {
-      if (!isConfigured) {
-        throw Exception('Firebase not configured');
-      }
-      return await _auth.createUserWithEmailAndPassword(
+      debugPrint('📝 Creating new user: $email');
+      final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      debugPrint('✅ User created successfully: $email');
+      return result;
     } on FirebaseAuthException catch (e) {
+      debugPrint('❌ Sign up error [${e.code}]: ${e.message}');
       throw _handleAuthException(e);
     }
   }
@@ -95,9 +87,6 @@ class FirebaseService {
   }
 
   User? get currentUser {
-    if (!isConfigured) {
-      return null;
-    }
     return _auth.currentUser;
   }
 
@@ -120,7 +109,7 @@ class FirebaseService {
     required Map<String, dynamic> assignmentData,
   }) async {
     try {
-      await _database
+      await database
           .ref('users/$userId/assignments/$assignmentId')
           .set(assignmentData);
     } catch (e) {
@@ -130,7 +119,7 @@ class FirebaseService {
 
   Future<List<Map<String, dynamic>>> getAssignments(String userId) async {
     try {
-      final snapshot = await _database.ref('users/$userId/assignments').get();
+      final snapshot = await database.ref('users/$userId/assignments').get();
 
       if (!snapshot.exists) {
         return [];
@@ -160,7 +149,7 @@ class FirebaseService {
     required Map<String, dynamic> updates,
   }) async {
     try {
-      await _database
+      await database
           .ref('users/$userId/assignments/$assignmentId')
           .update(updates);
     } catch (e) {
@@ -173,7 +162,7 @@ class FirebaseService {
     required String assignmentId,
   }) async {
     try {
-      await _database.ref('users/$userId/assignments/$assignmentId').remove();
+      await database.ref('users/$userId/assignments/$assignmentId').remove();
     } catch (e) {
       throw 'Failed to delete assignment: $e';
     }
@@ -181,7 +170,7 @@ class FirebaseService {
 
   // Stream for real-time assignment updates
   Stream<DatabaseEvent> getAssignmentsStream(String userId) {
-    return _database.ref('users/$userId/assignments').onValue;
+    return database.ref('users/$userId/assignments').onValue;
   }
 
   String _handleAuthException(FirebaseAuthException e) {
