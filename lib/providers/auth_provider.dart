@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:student_assignment_reminder_app/models/user_model.dart';
 import 'package:student_assignment_reminder_app/services/firebase_service.dart';
+import 'package:student_assignment_reminder_app/services/firebase_rest_auth.dart';
 
 // Auth state
 class AuthState {
@@ -99,41 +100,54 @@ class AuthProvider extends ChangeNotifier {
   Future<void> login({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, error: null));
     try {
-      // demo mode: allow login even with no Firebase project
-      if (!_firebaseService.isConfigured) {
-        await Future.delayed(const Duration(milliseconds: 300));
-        _setState(
-          _state.copyWith(
-            isAuthenticated: true,
-            user: User(
-              email: email,
-              name: 'Demo User',
-              createdAt: DateTime.now().toIso8601String(),
-            ),
-            isLoading: false,
-          ),
+      // First try Firebase SDK
+      try {
+        final userCredential = await _firebaseService.login(
+          email: email,
+          password: password,
         );
-        return;
-      }
-      final userCredential = await _firebaseService.login(
-        email: email,
-        password: password,
-      );
 
-      final firebaseUser = userCredential.user;
-      if (firebaseUser != null) {
-        _setState(
-          _state.copyWith(
-            isAuthenticated: true,
-            user: User(
-              email: firebaseUser.email ?? email,
-              name: firebaseUser.displayName ?? 'User',
-              createdAt:
-                  firebaseUser.metadata.creationTime?.toIso8601String() ?? '',
+        final firebaseUser = userCredential.user;
+        if (firebaseUser != null) {
+          _setState(
+            _state.copyWith(
+              isAuthenticated: true,
+              user: User(
+                email: firebaseUser.email ?? email,
+                name: firebaseUser.displayName ?? 'User',
+                createdAt:
+                    firebaseUser.metadata.creationTime?.toIso8601String() ?? '',
+              ),
+              isLoading: false,
             ),
-            isLoading: false,
-          ),
+          );
+          return;
+        }
+      } catch (sdkError) {
+        // If SDK fails, try REST API fallback
+        debugPrint('⚠️ Firebase SDK failed, trying REST API: $sdkError');
+
+        final result = await FirebaseRestAuth.signIn(
+          email: email,
+          password: password,
         );
+
+        if (result['success'] == true) {
+          _setState(
+            _state.copyWith(
+              isAuthenticated: true,
+              user: User(
+                email: result['email'] ?? email,
+                name: 'User',
+                createdAt: DateTime.now().toIso8601String(),
+              ),
+              isLoading: false,
+            ),
+          );
+          return;
+        } else {
+          throw Exception(result['error'] ?? 'Authentication failed');
+        }
       }
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
