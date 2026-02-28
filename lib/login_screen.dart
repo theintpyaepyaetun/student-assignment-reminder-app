@@ -27,18 +27,21 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // Call the AuthProvider login method
-    context.read<AuthProvider>().login(
-      email: emailController.text.trim(),
-      password: passwordController.text,
-    ).then((_) {
-      // Check if login was successful
-      if (mounted && context.read<AuthProvider>().isAuthenticated) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      }
-    });
+    context
+        .read<AuthProvider>()
+        .login(
+          email: emailController.text.trim(),
+          password: passwordController.text,
+        )
+        .then((_) {
+          // Check if login was successful
+          if (mounted && context.read<AuthProvider>().isAuthenticated) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
+          }
+        });
   }
 
   @override
@@ -134,6 +137,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 50),
 
+                    // Demo mode warning
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        if (auth.isDemoMode) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              'Demo mode active – any credentials will work.\n'
+                              'Configure Firebase to disable this message.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.yellow.withOpacity(0.9),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      },
+                    ),
+
                     // Glassmorphic Card
                     ClipRRect(
                       borderRadius: BorderRadius.circular(28),
@@ -183,14 +208,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                     width: double.infinity,
                                     height: 56,
                                     child: ElevatedButton(
-                                      onPressed: authProvider.isLoading ? null : login,
+                                      onPressed: authProvider.isLoading
+                                          ? null
+                                          : login,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white.withOpacity(
-                                          0.25,
-                                        ),
+                                        backgroundColor: Colors.white
+                                            .withOpacity(0.25),
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                         ),
                                         elevation: 0,
                                       ),
@@ -200,8 +228,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                               width: 24,
                                               child: CircularProgressIndicator(
                                                 valueColor:
-                                                    AlwaysStoppedAnimation<Color>(
-                                                      Colors.white.withOpacity(0.7),
+                                                    AlwaysStoppedAnimation<
+                                                      Color
+                                                    >(
+                                                      Colors.white.withOpacity(
+                                                        0.7,
+                                                      ),
                                                     ),
                                                 strokeWidth: 2,
                                               ),

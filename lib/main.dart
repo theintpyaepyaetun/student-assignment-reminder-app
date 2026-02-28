@@ -3,8 +3,11 @@ import 'package:provider/provider.dart';
 import 'login_screen.dart';
 import 'providers/auth_provider.dart';
 import 'providers/assignment_provider.dart';
+import 'services/firebase_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await FirebaseService.initialize();
   runApp(const StudentApp());
 }
 

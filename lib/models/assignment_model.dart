@@ -6,6 +6,7 @@ class Assignment {
   final String priority;
   final String status;
   final String createdAt;
+  final bool completed;
 
   Assignment({
     required this.id,
@@ -15,6 +16,7 @@ class Assignment {
     required this.priority,
     required this.status,
     required this.createdAt,
+    this.completed = false,
   });
 
   factory Assignment.fromJson(Map<String, dynamic> json) {
@@ -26,6 +28,7 @@ class Assignment {
       priority: json['priority'] as String? ?? 'MEDIUM',
       status: json['status'] as String? ?? 'PENDING',
       createdAt: json['created_at'] as String? ?? '',
+      completed: json['completed'] as bool? ?? false,
     );
   }
 
@@ -38,15 +41,17 @@ class Assignment {
       'priority': priority,
       'status': status,
       'created_at': createdAt,
+      'completed': completed,
     };
   }
 
-  bool get isCompleted => status == 'COMPLETED';
+  bool get isCompleted => completed || status == 'COMPLETED';
   bool get isOverdue => status == 'OVERDUE';
   bool get isHighPriority => priority == 'HIGH';
   bool get isMediumPriority => priority == 'MEDIUM';
   bool get isLowPriority => priority == 'LOW';
 
   @override
-  String toString() => 'Assignment(id: $id, title: $title, status: $status)';
+  String toString() =>
+      'Assignment(id: $id, title: $title, status: $status, completed: $completed)';
 }

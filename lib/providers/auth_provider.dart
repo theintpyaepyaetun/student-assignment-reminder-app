@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:student_assignment_reminder_app/models/user_model.dart';
-import 'package:student_assignment_reminder_app/services/api_service.dart';
-import 'package:student_assignment_reminder_app/services/token_storage_service.dart';
+import 'package:student_assignment_reminder_app/services/firebase_service.dart';
 
 // Auth state
 class AuthState {
@@ -33,11 +32,10 @@ class AuthState {
 }
 
 class AuthProvider extends ChangeNotifier {
-  late ApiService _apiService;
+  final FirebaseService _firebaseService = FirebaseService();
   AuthState _state = AuthState();
 
   AuthProvider() {
-    _apiService = ApiService(tokenStorage: TokenStorageService());
     _checkAuthStatus();
   }
 
@@ -46,6 +44,11 @@ class AuthProvider extends ChangeNotifier {
   User? get user => _state.user;
   bool get isLoading => _state.isLoading;
   String? get error => _state.error;
+
+  /// When the app is running without a valid Firebase configuration.
+  /// This is useful for development/demo purposes; authentication calls are
+  /// mocked instead of being sent to Firebase.
+  bool get isDemoMode => !_firebaseService.isConfigured;
 
   void _setState(AuthState newState) {
     _state = newState;
@@ -58,74 +61,104 @@ class AuthProvider extends ChangeNotifier {
     required String name,
   }) async {
     _setState(_state.copyWith(isLoading: true, error: null));
-    final result = await _apiService.register(
-      email: email,
-      password: password,
-      name: name,
-    );
+    try {
+      // if Firebase isn't configured yet, just fake a registration
+      if (!_firebaseService.isConfigured) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        _setState(
+          _state.copyWith(
+            isAuthenticated: true,
+            user: User(
+              email: email,
+              name: name,
+              createdAt: DateTime.now().toIso8601String(),
+            ),
+            isLoading: false,
+          ),
+        );
+        return;
+      }
+      await _firebaseService.signUp(email: email, password: password);
 
-    if (result['success']) {
-      _setState(_state.copyWith(
-        isAuthenticated: true,
-        user: User(
-          email: email,
-          name: name,
-          createdAt: DateTime.now().toIso8601String(),
+      _setState(
+        _state.copyWith(
+          isAuthenticated: true,
+          user: User(
+            email: email,
+            name: name,
+            createdAt: DateTime.now().toIso8601String(),
+          ),
+          isLoading: false,
         ),
-        isLoading: false,
-      ));
-    } else {
-      _setState(_state.copyWith(
-        isLoading: false,
-        error: result['message'] ?? 'Registration failed',
-      ));
+      );
+    } catch (e) {
+      _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     _setState(_state.copyWith(isLoading: true, error: null));
-    final result = await _apiService.login(
-      email: email,
-      password: password,
-    );
+    try {
+      // demo mode: allow login even with no Firebase project
+      if (!_firebaseService.isConfigured) {
+        await Future.delayed(const Duration(milliseconds: 300));
+        _setState(
+          _state.copyWith(
+            isAuthenticated: true,
+            user: User(
+              email: email,
+              name: 'Demo User',
+              createdAt: DateTime.now().toIso8601String(),
+            ),
+            isLoading: false,
+          ),
+        );
+        return;
+      }
+      final userCredential = await _firebaseService.login(
+        email: email,
+        password: password,
+      );
 
-    if (result['success']) {
-      _setState(_state.copyWith(
-        isAuthenticated: true,
-        user: result['user'] ?? User(email: email, name: '', createdAt: ''),
-        isLoading: false,
-      ));
-    } else {
-      _setState(_state.copyWith(
-        isLoading: false,
-        error: result['message'] ?? 'Login failed',
-      ));
+      final firebaseUser = userCredential.user;
+      if (firebaseUser != null) {
+        _setState(
+          _state.copyWith(
+            isAuthenticated: true,
+            user: User(
+              email: firebaseUser.email ?? email,
+              name: firebaseUser.displayName ?? 'User',
+              createdAt:
+                  firebaseUser.metadata.creationTime?.toIso8601String() ?? '',
+            ),
+            isLoading: false,
+          ),
+        );
+      }
+    } catch (e) {
+      _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 
   Future<void> logout() async {
-    await _apiService.logout();
+    await _firebaseService.logout();
     _setState(AuthState());
   }
 
   Future<void> _checkAuthStatus() async {
-    final hasToken = await _apiService.tokenStorage.hasToken();
-    if (hasToken) {
-      try {
-        final user = await _apiService.getUserProfile();
-        _setState(_state.copyWith(
+    final firebaseUser = _firebaseService.currentUser;
+    if (firebaseUser != null) {
+      _setState(
+        _state.copyWith(
           isAuthenticated: true,
-          user: user,
-        ));
-      } catch (e) {
-        _setState(_state.copyWith(
-          isAuthenticated: false,
-          error: e.toString(),
-        ));
-      }
+          user: User(
+            email: firebaseUser.email ?? '',
+            name: firebaseUser.displayName ?? 'User',
+            createdAt:
+                firebaseUser.metadata.creationTime?.toIso8601String() ?? '',
+          ),
+        ),
+      );
     }
   }
 }

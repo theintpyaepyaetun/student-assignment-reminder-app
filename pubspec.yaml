@@ -43,6 +43,12 @@ dependencies:
   
   # Local storage for tokens and preferences
   shared_preferences: ^2.2.0
+  
+  # Firebase packages for authentication and database
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.14.0
+  firebase_database: ^10.3.0
+  cloud_firestore: ^4.17.5
 
 dev_dependencies:
   flutter_test:

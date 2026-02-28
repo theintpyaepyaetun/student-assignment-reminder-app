@@ -5,6 +5,7 @@ import 'add_assignment_screen.dart';
 import 'settings_screen.dart';
 import 'detail_screen.dart';
 import 'providers/assignment_provider.dart';
+import 'providers/auth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -76,8 +77,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Load assignments from backend
-    Future.microtask(() {
+    // Load assignments from backend after first frame to safely access context
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<AssignmentProvider>().loadAssignments();
     });
   }
@@ -134,6 +136,25 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               children: [
                 const SizedBox(height: 120),
+
+                // Demo mode banner
+                Consumer<AuthProvider>(
+                  builder: (context, auth, _) {
+                    if (auth.isDemoMode) {
+                      return Container(
+                        width: double.infinity,
+                        color: Colors.yellow.withOpacity(0.9),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: const Text(
+                          'Demo mode active – no Firebase configuration found',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black87, fontSize: 14),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
 
                 // Status Chips
                 Padding(

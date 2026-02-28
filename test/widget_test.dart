@@ -9,22 +9,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:student_assignment_reminder_app/main.dart';
+import 'package:student_assignment_reminder_app/services/firebase_service.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('App loads and shows login UI', (WidgetTester tester) async {
+    // initialize FirebaseService for the test environment; this will
+    // effectively be a no-op if options are still placeholders, but it
+    // prevents AuthProvider from trying to access Firebase before an app
+    // exists.
+    WidgetsFlutterBinding.ensureInitialized();
+    await FirebaseService.initialize();
+    // Build the app inside a MediaQuery with a larger size to avoid layout overflows
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(size: Size(1080, 2340)),
+        child: const StudentApp(),
+      ),
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    // Allow frames to settle
+    await tester.pumpAndSettle();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify that the login screen is shown with expected text
+    expect(find.text('Welcome Back'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
   });
 }
