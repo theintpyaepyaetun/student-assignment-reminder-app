@@ -3,18 +3,47 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { db } = require('../config/firebase');
 const { generateToken } = require('../config/auth');
+const { authRateLimit } = require('../middleware/rateLimit');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+const isValidEmail = (value) => EMAIL_REGEX.test(normalizeEmail(value));
+
+const isStrongEnoughPassword = (value) => {
+  const password = String(value || '');
+  return password.length >= 8;
+};
+
+const validateName = (value) => {
+  const name = String(value || '').trim();
+  if (!name) return null;
+  if (name.length > 80) return null;
+  return name;
+};
 
 // Register
-router.post('/register', async (req, res) => {
+router.post('/register', authRateLimit, async (req, res) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, password, name } = req.body || {};
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedName = validateName(name);
 
-    if (!email || !password || !name) {
+    if (!normalizedEmail || !password || !normalizedName) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
     }
 
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    if (!isStrongEnoughPassword(password)) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
     // Check if user already exists
-    const userRef = db.collection('users').doc(email);
+    const userRef = db.collection('users').doc(normalizedEmail);
     const userDoc = await userRef.get();
 
     if (userDoc.exists) {
@@ -25,18 +54,18 @@ router.post('/register', async (req, res) => {
 
     // Create user document
     await userRef.set({
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
-      name,
+      name: normalizedName,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     });
 
-    const token = generateToken(email, email);
+    const token = generateToken(normalizedEmail, normalizedEmail);
 
     res.status(201).json({
       message: 'User registered successfully',
-      email,
+      email: normalizedEmail,
       token
     });
   } catch (error) {
@@ -46,15 +75,20 @@ router.post('/register', async (req, res) => {
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post('/login', authRateLimit, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
+    const normalizedEmail = normalizeEmail(email);
 
-    if (!email || !password) {
+    if (!normalizedEmail || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const userRef = db.collection('users').doc(email);
+    if (!isValidEmail(normalizedEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    const userRef = db.collection('users').doc(normalizedEmail);
     const userDoc = await userRef.get();
 
     if (!userDoc.exists) {
@@ -68,7 +102,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = generateToken(email, email);
+    const token = generateToken(normalizedEmail, normalizedEmail);
 
     res.json({
       message: 'Login successful',

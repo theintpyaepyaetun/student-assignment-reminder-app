@@ -79,6 +79,15 @@ class Task {
     );
   }
 
+  bool get isOverdue {
+    if (isCompleted) return false;
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    return dueDay.isBefore(todayStart);
+  }
+
   @override
   String toString() =>
       'Task(id: $id, userId: $userId, title: $title, isCompleted: $isCompleted)';

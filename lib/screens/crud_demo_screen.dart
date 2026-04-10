@@ -241,6 +241,10 @@ class _CRUDDemoScreenState extends State<CRUDDemoScreen> {
                             'Pending: ${taskProvider.taskStats['pending'] ?? 0}',
                             style: const TextStyle(fontSize: 14),
                           ),
+                          Text(
+                            'Overdue: ${taskProvider.taskStats['overdue'] ?? 0}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ],
                       ),
                     ),

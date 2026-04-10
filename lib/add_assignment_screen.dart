@@ -11,14 +11,118 @@ class AssignmentScreen extends StatefulWidget {
 class _AssignmentScreenState extends State<AssignmentScreen> {
   final titleController = TextEditingController();
   final deadlineController = TextEditingController();
+  final dueTimeController = TextEditingController();
   final descriptionController = TextEditingController();
   String selectedPriority = "medium";
+  DateTime? selectedDeadline;
+  TimeOfDay? selectedDueTime;
+
+  static const List<String> _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String _formatDate(DateTime date) {
+    final month = _months[(date.month - 1).clamp(0, 11)];
+    return '$month ${date.day}, ${date.year}';
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year - 1);
+    final lastDate = DateTime(now.year + 10);
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDeadline ?? now,
+      firstDate: firstDate,
+      lastDate: lastDate,
+      helpText: 'Select Deadline',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF667EEA),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F1F1F),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate == null) return;
+
+    setState(() {
+      selectedDeadline = pickedDate;
+      deadlineController.text = _formatDate(pickedDate);
+    });
+  }
+
+  Future<void> _pickDueTime() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: selectedDueTime ?? const TimeOfDay(hour: 23, minute: 59),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF667EEA),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F1F1F),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime == null) return;
+
+    setState(() {
+      selectedDueTime = pickedTime;
+      dueTimeController.text = _formatTime(pickedTime);
+    });
+  }
+
+  DateTime? _buildDueDateTime() {
+    if (selectedDeadline == null || selectedDueTime == null) return null;
+    return DateTime(
+      selectedDeadline!.year,
+      selectedDeadline!.month,
+      selectedDeadline!.day,
+      selectedDueTime!.hour,
+      selectedDueTime!.minute,
+    );
+  }
 
   void addAssignment() {
-    if (titleController.text.isEmpty || deadlineController.text.isEmpty) {
+    final dueDateTime = _buildDueDateTime();
+
+    if (titleController.text.isEmpty || dueDateTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text("Please fill all fields"),
+          content: Text("Please select due date and due time"),
           backgroundColor: Color(0xFFEF5350),
         ),
       );
@@ -27,7 +131,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
 
     Navigator.pop(context, {
       "title": titleController.text,
-      "deadline": deadlineController.text,
+      "deadline": dueDateTime.toIso8601String(),
       "description": descriptionController.text.isEmpty
           ? "No description provided"
           : descriptionController.text,
@@ -110,8 +214,19 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                             // Deadline Field
                             _buildInputField(
                               controller: deadlineController,
-                              label: "Deadline (e.g., Feb 25)",
+                              label: "Due Date",
                               icon: Icons.calendar_today,
+                              readOnly: true,
+                              onTap: _pickDeadline,
+                            ),
+                            const SizedBox(height: 18),
+
+                            _buildInputField(
+                              controller: dueTimeController,
+                              label: "Due Time",
+                              icon: Icons.access_time,
+                              readOnly: true,
+                              onTap: _pickDueTime,
                             ),
                             const SizedBox(height: 18),
 
@@ -192,6 +307,8 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
     required String label,
     required IconData icon,
     int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
@@ -207,6 +324,8 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
             controller: controller,
             maxLines: maxLines,
             minLines: maxLines == 1 ? 1 : null,
+            readOnly: readOnly,
+            onTap: onTap,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 16,
@@ -219,7 +338,10 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
               ),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.5)),
+              prefixIcon: IconButton(
+                onPressed: onTap,
+                icon: Icon(icon, color: Colors.white.withOpacity(0.5)),
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -269,6 +391,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
   void dispose() {
     titleController.dispose();
     deadlineController.dispose();
+    dueTimeController.dispose();
     descriptionController.dispose();
     super.dispose();
   }

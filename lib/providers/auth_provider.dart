@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:student_assignment_reminder_app/models/user_model.dart';
 import 'package:student_assignment_reminder_app/models/user_profile_model.dart';
+import 'package:student_assignment_reminder_app/services/assignment_notification_service.dart';
 import 'package:student_assignment_reminder_app/services/firebase_service.dart';
+import 'package:student_assignment_reminder_app/services/firebase_messaging_service.dart';
 import 'package:student_assignment_reminder_app/services/firestore_service.dart';
 
 class AuthState {
@@ -34,6 +36,8 @@ class AuthState {
 
 class AuthProvider extends ChangeNotifier {
   final FirebaseService _firebaseService = FirebaseService();
+  final FirebaseMessagingService _firebaseMessagingService =
+      FirebaseMessagingService();
   final FirestoreService _firestoreService = FirestoreService();
   AuthState _state = AuthState();
 
@@ -113,6 +117,10 @@ class AuthProvider extends ChangeNotifier {
           error: null,
         ),
       );
+
+      await AssignmentNotificationService.instance
+          .syncCurrentUserAssignmentReminders();
+      await _firebaseMessagingService.syncTokenForCurrentUser();
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
@@ -162,13 +170,16 @@ class AuthProvider extends ChangeNotifier {
           error: null,
         ),
       );
+      await _firebaseMessagingService.syncTokenForCurrentUser();
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }
   }
 
   Future<void> logout() async {
+    final uid = _firebaseService.currentUser?.uid;
     try {
+      await _firebaseMessagingService.clearTokenForCurrentUser(uid: uid);
       await _firebaseService.logout();
     } finally {
       _setState(AuthState());
@@ -210,6 +221,10 @@ class AuthProvider extends ChangeNotifier {
           error: null,
         ),
       );
+
+      await AssignmentNotificationService.instance
+          .syncCurrentUserAssignmentReminders();
+      await _firebaseMessagingService.syncTokenForCurrentUser();
     } catch (e) {
       _setState(_state.copyWith(isLoading: false, error: e.toString()));
     }

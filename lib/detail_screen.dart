@@ -22,16 +22,192 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late TextEditingController titleController;
   late TextEditingController deadlineController;
+  late TextEditingController dueTimeController;
   late TextEditingController descriptionController;
   late String selectedPriority;
   bool isEditing = false;
+  DateTime? selectedDeadline;
+  TimeOfDay? selectedDueTime;
+
+  static const List<String> _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
+  String _formatDate(DateTime date) {
+    final month = _months[(date.month - 1).clamp(0, 11)];
+    return '$month ${date.day}, ${date.year}';
+  }
+
+  String _formatTime(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  DateTime? _parseDeadlineValue(dynamic rawDeadline) {
+    if (rawDeadline == null) return null;
+
+    final text = rawDeadline.toString().trim();
+    if (text.isEmpty) return null;
+
+    final isoParsed = DateTime.tryParse(text);
+    if (isoParsed != null) return isoParsed;
+
+    final cleaned = text.replaceAll(',', '');
+    final parts = cleaned.split(RegExp(r'\s+'));
+    if (parts.length < 3) return null;
+
+    const monthMap = {
+      'jan': 1,
+      'feb': 2,
+      'mar': 3,
+      'apr': 4,
+      'may': 5,
+      'jun': 6,
+      'jul': 7,
+      'aug': 8,
+      'sep': 9,
+      'oct': 10,
+      'nov': 11,
+      'dec': 12,
+    };
+
+    final month = monthMap[parts[0].toLowerCase()];
+    final day = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+    if (month == null || day == null || year == null) return null;
+
+    if (parts.length >= 5) {
+      final timeParts = parts[3].split(':');
+      final rawHour = int.tryParse(timeParts.first);
+      final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) : 0;
+      final meridiem = parts[4].toUpperCase();
+
+      if (rawHour != null && minute != null) {
+        var hour24 = rawHour % 12;
+        if (meridiem == 'PM') hour24 += 12;
+        return DateTime(year, month, day, hour24, minute);
+      }
+    }
+
+    return DateTime(year, month, day, 23, 59);
+  }
+
+  DateTime _currentDueDateTime() {
+    if (selectedDeadline != null && selectedDueTime != null) {
+      return DateTime(
+        selectedDeadline!.year,
+        selectedDeadline!.month,
+        selectedDeadline!.day,
+        selectedDueTime!.hour,
+        selectedDueTime!.minute,
+      );
+    }
+
+    return _parseDeadlineValue(widget.assignment['deadline']) ?? DateTime.now();
+  }
+
+  DateTime _safeInitialDate() {
+    if (selectedDeadline != null) return selectedDeadline!;
+    return DateTime.now();
+  }
+
+  Future<void> _pickDeadline() async {
+    final now = DateTime.now();
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: _safeInitialDate(),
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 10),
+      helpText: 'Select Deadline',
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF667EEA),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F1F1F),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate == null) return;
+
+    setState(() {
+      selectedDeadline = pickedDate;
+      deadlineController.text = _formatDate(pickedDate);
+    });
+  }
+
+  Future<void> _pickDueTime() async {
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: selectedDueTime ?? const TimeOfDay(hour: 23, minute: 59),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF667EEA),
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Color(0xFF1F1F1F),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime == null) return;
+
+    setState(() {
+      selectedDueTime = pickedTime;
+      dueTimeController.text = _formatTime(pickedTime);
+    });
+  }
 
   @override
   void initState() {
     super.initState();
+    final initialDueDateTime = _parseDeadlineValue(
+      widget.assignment['deadline'],
+    );
+    if (initialDueDateTime != null) {
+      selectedDeadline = DateTime(
+        initialDueDateTime.year,
+        initialDueDateTime.month,
+        initialDueDateTime.day,
+      );
+      selectedDueTime = TimeOfDay(
+        hour: initialDueDateTime.hour,
+        minute: initialDueDateTime.minute,
+      );
+    }
+
     titleController = TextEditingController(text: widget.assignment["title"]);
     deadlineController = TextEditingController(
-      text: widget.assignment["deadline"],
+      text: _formatDate(selectedDeadline ?? DateTime.now()),
+    );
+    dueTimeController = TextEditingController(
+      text: _formatTime(
+        selectedDueTime ?? const TimeOfDay(hour: 23, minute: 59),
+      ),
     );
     descriptionController = TextEditingController(
       text: widget.assignment["description"],
@@ -40,7 +216,9 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   void saveChanges() {
-    if (titleController.text.isEmpty || deadlineController.text.isEmpty) {
+    final dueDateTime = _currentDueDateTime();
+
+    if (titleController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please fill all fields"),
@@ -51,8 +229,12 @@ class _DetailScreenState extends State<DetailScreen> {
     }
 
     widget.onUpdate(widget.index, {
+      "id": widget.assignment["id"],
+      "userId": widget.assignment["userId"],
+      "createdAt": widget.assignment["createdAt"],
+      "updatedAt": widget.assignment["updatedAt"],
       "title": titleController.text,
-      "deadline": deadlineController.text,
+      "deadline": dueDateTime.toIso8601String(),
       "description": descriptionController.text,
       "completed": widget.assignment["completed"],
       "priority": selectedPriority,
@@ -271,8 +453,18 @@ class _DetailScreenState extends State<DetailScreen> {
                                 children: [
                                   _buildEditField(
                                     controller: deadlineController,
-                                    label: "Deadline",
+                                    label: "Due Date",
                                     icon: Icons.calendar_today,
+                                    readOnly: true,
+                                    onTap: _pickDeadline,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  _buildEditField(
+                                    controller: dueTimeController,
+                                    label: "Due Time",
+                                    icon: Icons.access_time,
+                                    readOnly: true,
+                                    onTap: _pickDueTime,
                                   ),
                                   const SizedBox(height: 16),
                                   Text(
@@ -312,6 +504,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                       controller: deadlineController,
                                       label: "Deadline",
                                       icon: null,
+                                      readOnly: true,
+                                      onTap: _pickDeadline,
                                     ),
                                   )
                                 else
@@ -320,7 +514,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Due Date",
+                                        "Due Date & Time",
                                         style: TextStyle(
                                           color: Colors.white.withOpacity(0.6),
                                           fontSize: 12,
@@ -329,7 +523,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        deadlineController.text,
+                                        '${deadlineController.text} ${dueTimeController.text}',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 16,
@@ -398,6 +592,8 @@ class _DetailScreenState extends State<DetailScreen> {
     required String label,
     IconData? icon,
     int maxLines = 1,
+    bool readOnly = false,
+    VoidCallback? onTap,
   }) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -416,6 +612,8 @@ class _DetailScreenState extends State<DetailScreen> {
             controller: controller,
             maxLines: maxLines,
             minLines: maxLines == 1 ? 1 : null,
+            readOnly: readOnly,
+            onTap: onTap,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -428,7 +626,10 @@ class _DetailScreenState extends State<DetailScreen> {
                 fontSize: 15,
               ),
               prefixIcon: icon != null
-                  ? Icon(icon, color: Colors.white.withOpacity(0.4))
+                  ? IconButton(
+                      onPressed: onTap,
+                      icon: Icon(icon, color: Colors.white.withOpacity(0.4)),
+                    )
                   : null,
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(14),
@@ -476,6 +677,7 @@ class _DetailScreenState extends State<DetailScreen> {
   void dispose() {
     titleController.dispose();
     deadlineController.dispose();
+    dueTimeController.dispose();
     descriptionController.dispose();
     super.dispose();
   }

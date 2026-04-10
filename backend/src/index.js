@@ -9,13 +9,18 @@ require('./config/firebase');
 const authRoutes = require('./routes/auth');
 const assignmentRoutes = require('./routes/assignments');
 const userRoutes = require('./routes/user');
+const notificationRoutes = require('./routes/notifications');
+const { startDueTomorrowNotifier } = require('./jobs/dueTomorrowNotifier');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const corsOrigin = process.env.CORS_ORIGIN;
+
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: corsOrigin || 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true
 }));
@@ -27,6 +32,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -47,4 +53,5 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend server running on http://localhost:${PORT}`);
   console.log(`Database: Firebase Firestore`);
+  startDueTomorrowNotifier();
 });

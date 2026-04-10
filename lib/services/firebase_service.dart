@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 
@@ -18,11 +19,18 @@ class FirebaseService {
 
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static FirebaseDatabase? _database;
+  static FirebaseFirestore? _firestore;
 
   // Get database instance lazily (only when needed)
   static FirebaseDatabase get database {
     _database ??= FirebaseDatabase.instance;
     return _database!;
+  }
+
+  // Get Firestore instance lazily (only when needed)
+  static FirebaseFirestore get firestore {
+    _firestore ??= FirebaseFirestore.instance;
+    return _firestore!;
   }
 
   // Initialize Firebase
@@ -37,6 +45,12 @@ class FirebaseService {
       debugPrint(
         '✅ Project: ${DefaultFirebaseOptions.currentPlatform.projectId}',
       );
+
+      // Configure Firestore settings
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+      );
+      debugPrint('✅ Firestore configured with persistence enabled');
     } catch (e) {
       debugPrint('❌ Firebase initialization error: $e');
       rethrow;

@@ -7,7 +7,12 @@ class TaskProvider extends ChangeNotifier {
 
   List<Task> _allTasks = [];
   List<Task> _incompleteTasks = [];
-  Map<String, int> _taskStats = {'total': 0, 'completed': 0, 'pending': 0};
+  Map<String, int> _taskStats = {
+    'total': 0,
+    'completed': 0,
+    'pending': 0,
+    'overdue': 0,
+  };
   bool _isLoading = false;
   String? _error;
 

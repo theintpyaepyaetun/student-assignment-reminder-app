@@ -7,6 +7,7 @@ import 'add_assignment_screen.dart';
 import 'settings_screen.dart';
 import 'detail_screen.dart';
 import 'providers/auth_provider.dart';
+import 'services/assignment_notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,6 +18,40 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> assignments = [];
+
+  String _assignmentNotificationKey(Map<String, dynamic> assignment) {
+    final id = assignment['id']?.toString();
+    if (id != null && id.isNotEmpty) return id;
+
+    final title = assignment['title']?.toString() ?? 'assignment';
+    final deadline = assignment['deadline']?.toString() ?? '';
+    return '$title|$deadline';
+  }
+
+  Future<void> _scheduleReminderForAssignment(
+    Map<String, dynamic> assignment,
+  ) async {
+    final isCompleted = assignment['completed'] == true;
+    if (isCompleted) {
+      await AssignmentNotificationService.instance.cancelReminder(
+        _assignmentNotificationKey(assignment),
+      );
+      return;
+    }
+
+    final title = assignment['title']?.toString() ?? '';
+    if (title.isEmpty) return;
+
+    final parsedDeadline = _parseDeadlineValue(assignment['deadline']);
+    if (parsedDeadline == null) return;
+
+    await AssignmentNotificationService.instance
+        .scheduleOneDayBeforeDeadlineFromDate(
+          assignmentId: _assignmentNotificationKey(assignment),
+          title: title,
+          deadlineDate: parsedDeadline,
+        );
+  }
 
   Future<void> _loadAssignmentsFromFirestore() async {
     try {
@@ -32,15 +67,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = doc.data();
         final rawDeadline = data['deadline'];
         final rawPriority = data['priority'];
-
-        String deadlineDisplay;
-        if (rawDeadline is Timestamp) {
-          final date = rawDeadline.toDate();
-          deadlineDisplay =
-              '${_monthName(date.month)} ${date.day}, ${date.year}';
-        } else {
-          deadlineDisplay = (rawDeadline ?? '').toString();
-        }
 
         String priorityDisplay;
         if (rawPriority is int) {
@@ -58,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return <String, dynamic>{
           'id': doc.id,
           'title': data['title'] ?? '',
-          'deadline': deadlineDisplay,
+          'deadline': rawDeadline,
           'description': data['description'] ?? '',
           'completed': data['completed'] ?? false,
           'priority': priorityDisplay,
@@ -72,6 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
         setState(() {
           assignments = loaded;
         });
+
+        for (final assignment in loaded) {
+          _scheduleReminderForAssignment(assignment);
+        }
       }
     } catch (e) {
       debugPrint('❌ Error loading assignments from Firestore: $e');
@@ -131,6 +161,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 assignment['id'] = docRef.id;
                 assignments.add(assignment);
               });
+
+              _scheduleReminderForAssignment(assignment);
             })
             .catchError((e) {
               debugPrint('❌ Error saving to Firestore: $e');
@@ -138,25 +170,42 @@ class _HomeScreenState extends State<HomeScreen> {
               setState(() {
                 assignments.add(assignment);
               });
+
+              _scheduleReminderForAssignment(assignment);
             });
       } else {
         debugPrint('⚠️ No user authenticated - assignment NOT saved');
         setState(() {
           assignments.add(assignment);
         });
+
+        _scheduleReminderForAssignment(assignment);
       }
     } catch (e) {
       debugPrint('❌ Firestore save error: $e');
       setState(() {
         assignments.add(assignment);
       });
+
+      _scheduleReminderForAssignment(assignment);
     }
   }
 
   void updateAssignment(int index, Map<String, dynamic> assignment) {
+    final oldAssignment = assignments[index];
+
     setState(() {
       assignments[index] = assignment;
     });
+
+    final oldKey = _assignmentNotificationKey(oldAssignment);
+    final newKey = _assignmentNotificationKey(assignment);
+
+    if (oldKey != newKey) {
+      AssignmentNotificationService.instance.cancelReminder(oldKey);
+    }
+
+    _scheduleReminderForAssignment(assignment);
 
     // Update in Firestore
     try {
@@ -195,6 +244,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void deleteAssignment(int index) {
+    final assignment = assignments[index];
+    AssignmentNotificationService.instance.cancelReminder(
+      _assignmentNotificationKey(assignment),
+    );
+
     // Delete from Firestore
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -233,6 +287,8 @@ class _HomeScreenState extends State<HomeScreen> {
       assignments[index]["completed"] = !assignments[index]["completed"];
     });
 
+    _scheduleReminderForAssignment(assignments[index]);
+
     // Update completion status in Firestore
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -262,8 +318,111 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int get completedCount => assignments.where((a) => a["completed"]).length;
-  int get pendingCount => assignments.where((a) => !a["completed"]).length;
-  int get overdueCount => 1; // Mock value for demonstration
+  bool _isAssignmentOverdue(Map<String, dynamic> assignment) {
+    if (assignment["completed"] == true) return false;
+
+    final deadline = _parseDeadlineValue(assignment["deadline"]);
+    if (deadline == null) return false;
+
+    return deadline.isBefore(DateTime.now());
+  }
+
+  int? _daysUntilAssignmentDeadline(Map<String, dynamic> assignment) {
+    if (assignment["completed"] == true) return null;
+
+    final deadline = _parseDeadlineValue(assignment["deadline"]);
+    if (deadline == null) return null;
+
+    final now = DateTime.now();
+    final todayStart = DateTime(now.year, now.month, now.day);
+    final deadlineDay = DateTime(deadline.year, deadline.month, deadline.day);
+    return deadlineDay.difference(todayStart).inDays;
+  }
+
+  int get pendingCount => assignments
+      .where(
+        (assignment) =>
+            !assignment["completed"] && !_isAssignmentOverdue(assignment),
+      )
+      .length;
+
+  DateTime? _parseDeadlineValue(dynamic rawDeadline) {
+    if (rawDeadline == null) return null;
+
+    if (rawDeadline is Timestamp) {
+      return rawDeadline.toDate();
+    }
+
+    if (rawDeadline is DateTime) {
+      return rawDeadline;
+    }
+
+    final text = rawDeadline.toString().trim();
+    if (text.isEmpty) return null;
+
+    final isoParsed = DateTime.tryParse(text);
+    if (isoParsed != null) return isoParsed;
+
+    final cleaned = text.replaceAll(',', '');
+    final parts = cleaned.split(RegExp(r'\s+'));
+    if (parts.length < 3) return null;
+
+    const monthMap = {
+      'jan': 1,
+      'feb': 2,
+      'mar': 3,
+      'apr': 4,
+      'may': 5,
+      'jun': 6,
+      'jul': 7,
+      'aug': 8,
+      'sep': 9,
+      'oct': 10,
+      'nov': 11,
+      'dec': 12,
+    };
+
+    final month = monthMap[parts[0].toLowerCase()];
+    final day = int.tryParse(parts[1]);
+    final year = int.tryParse(parts[2]);
+
+    if (month == null || day == null || year == null) return null;
+
+    if (parts.length >= 5) {
+      final timeParts = parts[3].split(':');
+      final rawHour = int.tryParse(timeParts.first);
+      final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) : 0;
+      final meridiem = parts[4].toUpperCase();
+
+      if (rawHour != null && minute != null) {
+        var hour24 = rawHour % 12;
+        if (meridiem == 'PM') {
+          hour24 += 12;
+        }
+        return DateTime(year, month, day, hour24, minute);
+      }
+    }
+
+    return DateTime(year, month, day, 23, 59);
+  }
+
+  String _formatDeadlineForDisplay(dynamic rawDeadline) {
+    final deadline = _parseDeadlineValue(rawDeadline);
+    if (deadline == null) {
+      return (rawDeadline ?? '').toString();
+    }
+
+    final hour24 = deadline.hour;
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+    final minute = deadline.minute.toString().padLeft(2, '0');
+    final period = hour24 >= 12 ? 'PM' : 'AM';
+
+    return '${_monthName(deadline.month)} ${deadline.day}, ${deadline.year} $hour12:$minute $period';
+  }
+
+  int get overdueCount {
+    return assignments.where(_isAssignmentOverdue).length;
+  }
 
   @override
   void initState() {
@@ -334,7 +493,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     if (auth.isDemoMode) {
                       return Container(
                         width: double.infinity,
-                        color: Colors.yellow.withOpacity(0.9),
+                        color: Colors.yellow.withValues(alpha: 0.9),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                         child: const Text(
                           'Demo mode active – no Firebase configuration found',
@@ -415,13 +574,20 @@ class _HomeScreenState extends State<HomeScreen> {
             addAssignment(result);
           }
         },
-        backgroundColor: Colors.white.withOpacity(0.25),
+        backgroundColor: Colors.white.withValues(alpha: 0.25),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: Colors.white.withOpacity(0.3), width: 1.5),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.3),
+            width: 1.5,
+          ),
         ),
-        child: Icon(Icons.add, color: Colors.white.withOpacity(0.9), size: 28),
+        child: Icon(
+          Icons.add,
+          color: Colors.white.withValues(alpha: 0.9),
+          size: 28,
+        ),
       ),
     );
   }
@@ -440,15 +606,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -470,7 +636,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
+                    color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -510,15 +676,15 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: Colors.white.withOpacity(0.25),
+                color: Colors.white.withValues(alpha: 0.25),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 0.1),
                   blurRadius: 16,
                   offset: const Offset(0, 8),
                 ),
@@ -535,7 +701,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withOpacity(0.4),
+                        color: Colors.white.withValues(alpha: 0.4),
                         width: 2,
                       ),
                       color: assignment["completed"]
@@ -563,26 +729,110 @@ class _HomeScreenState extends State<HomeScreen> {
                           decoration: assignment["completed"]
                               ? TextDecoration.lineThrough
                               : null,
-                          decorationColor: Colors.white.withOpacity(0.5),
+                          decorationColor: Colors.white.withValues(alpha: 0.5),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 6),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
                         children: [
-                          Icon(
-                            Icons.calendar_today,
-                            size: 12,
-                            color: Colors.white.withOpacity(0.6),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                size: 12,
+                                color: assignment["completed"] == true
+                                    ? Colors.white.withValues(alpha: 0.6)
+                                    : _isAssignmentOverdue(assignment)
+                                    ? const Color(0xFFEF5350)
+                                    : Colors.white.withValues(alpha: 0.6),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Due: ${_formatDeadlineForDisplay(assignment['deadline'])}",
+                                style: TextStyle(
+                                  color: assignment["completed"] == true
+                                      ? Colors.white.withValues(alpha: 0.6)
+                                      : _isAssignmentOverdue(assignment)
+                                      ? const Color(0xFFFFCDD2)
+                                      : Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            "Due: ${assignment['deadline']}",
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
+                          if (_isAssignmentOverdue(assignment)) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFEF5350,
+                                ).withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFFEF5350,
+                                  ).withValues(alpha: 0.65),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: const Text(
+                                'Overdue',
+                                style: TextStyle(
+                                  color: Color(0xFFFFCDD2),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
+                          ] else if (_daysUntilAssignmentDeadline(assignment) ==
+                              1) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFFFFC107,
+                                ).withValues(alpha: 0.22),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: const Color(
+                                    0xFFFFC107,
+                                  ).withValues(alpha: 0.65),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 12,
+                                    color: Color(0xFFFFF3CD),
+                                  ),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    '1 day left',
+                                    style: TextStyle(
+                                      color: Color(0xFFFFF3CD),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
@@ -597,20 +847,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: assignment["priority"] == "high"
-                        ? const Color(0xFFEF5350).withOpacity(0.3)
-                        : const Color(0xFFFF9100).withOpacity(0.3),
+                        ? const Color(0xFFEF5350).withValues(alpha: 0.3)
+                        : const Color(0xFFFF9100).withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: assignment["priority"] == "high"
-                          ? const Color(0xFFEF5350).withOpacity(0.5)
-                          : const Color(0xFFFF9100).withOpacity(0.5),
+                          ? const Color(0xFFEF5350).withValues(alpha: 0.5)
+                          : const Color(0xFFFF9100).withValues(alpha: 0.5),
                       width: 0.5,
                     ),
                   ),
                   child: Text(
                     assignment["priority"] == "high" ? "High" : "Medium",
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.8),
+                      color: Colors.white.withValues(alpha: 0.8),
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                     ),
@@ -632,13 +882,13 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(
             Icons.assignment_outlined,
             size: 80,
-            color: Colors.white.withOpacity(0.2),
+            color: Colors.white.withValues(alpha: 0.2),
           ),
           const SizedBox(height: 16),
           Text(
             "No Assignments Yet",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
@@ -647,7 +897,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             "Tap the + button to add your first assignment",
             style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.white.withValues(alpha: 0.5),
               fontSize: 14,
               fontWeight: FontWeight.w400,
             ),

@@ -1,46 +1,140 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Student Assignment Reminder App landing page"
+    />
+    <title>Student Assignment Reminder | Landing Page</title>
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+    <link rel="stylesheet" href="landing.css" />
+  </head>
+  <body>
+    <script>
+      (function clearOldFlutterCache() {
+        if (!('serviceWorker' in navigator)) return;
 
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="$FLUTTER_BASE_HREF">
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          if (!registrations.length) return;
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+          Promise.all(registrations.map((registration) => registration.unregister()))
+            .then(() => {
+              if (!sessionStorage.getItem('sw-cleared')) {
+                sessionStorage.setItem('sw-cleared', '1');
+                window.location.reload();
+              }
+            })
+            .catch(() => {});
+        });
+      })();
+    </script>
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="student_assignment_reminder_app">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+    <header class="site-header" id="top">
+      <div class="container nav-wrap">
+        <a href="#top" class="brand" aria-label="Go to top">
+          <span class="brand-mark">✓</span>
+          <span>Assignment Reminder</span>
+        </a>
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+        <button class="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+          ☰
+        </button>
 
-  <title>student_assignment_reminder_app</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How It Works</a>
+          <a href="#testimonials">Testimonials</a>
+          <a href="/login" class="btn btn-sm">Get Started</a>
+        </nav>
+      </div>
+    </header>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
-</body>
+    <main>
+      <section class="hero section reveal">
+        <div class="container hero-grid">
+          <div class="hero-content">
+            <p class="eyebrow">Built for students who take deadlines seriously</p>
+            <h1>Never Miss an Assignment Deadline Again</h1>
+            <p class="subheadline">
+              Plan your tasks, track your progress, and get timely reminders with
+              a clean and focused student workflow.
+            </p>
+
+            <div class="hero-actions">
+              <a href="/login" class="btn btn-primary">Get Started</a>
+              <a href="#features" class="btn btn-ghost">See Features</a>
+            </div>
+
+            <ul class="hero-metrics" aria-label="Product highlights">
+              <li><strong>10k+</strong><span>Tasks Tracked</span></li>
+              <li><strong>98%</strong><span>On-Time Completion</span></li>
+              <li><strong>24/7</strong><span>Cloud Access</span></li>
+            </ul>
+          </div>
+
+          <aside class="hero-card" aria-label="App preview">
+            <h3>Today’s Schedule</h3>
+            <ul id="schedule-list"></ul>
+          </aside>
+        </div>
+      </section>
+
+      <section class="section reveal" id="features">
+        <div class="container">
+          <h2>Features Built for Students</h2>
+          <p class="section-intro">
+            Everything you need to manage assignments in one place.
+          </p>
+          <div class="features-grid" id="features-grid"></div>
+        </div>
+      </section>
+
+      <section class="section section-muted reveal" id="how-it-works">
+        <div class="container">
+          <h2>How It Works</h2>
+          <div class="steps-grid" id="steps-grid"></div>
+        </div>
+      </section>
+
+      <section class="section reveal" id="testimonials">
+        <div class="container">
+          <h2>What Students Say</h2>
+          <div class="testimonials-grid" id="testimonials-grid"></div>
+        </div>
+      </section>
+
+      <section class="section cta-section reveal" id="cta">
+        <div class="container cta-wrap">
+          <h2>Start Organizing Your Academic Life Today</h2>
+          <p>Join students who manage assignments with confidence and clarity.</p>
+          <div class="cta-actions">
+            <a href="/login" class="btn btn-primary">Get Started</a>
+            <a href="/signup" class="btn btn-ghost">Create Account</a>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-wrap">
+        <div>
+          <h3>Contact</h3>
+          <p>Email: support@assignmentreminder.app</p>
+          <p>Phone: +1 (555) 123-4567</p>
+        </div>
+        <p>© <span id="year"></span> Assignment Reminder. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script src="landing.js"></script>
+  </body>
 </html>

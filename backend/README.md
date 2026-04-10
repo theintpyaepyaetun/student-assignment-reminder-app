@@ -204,8 +204,10 @@ GET /api/health
 |----------|-------------|
 | `NODE_ENV` | Environment mode (development/production) |
 | `PORT` | Server port (default: 5000) |
-| `JWT_SECRET` | Secret key for JWT tokens |
+| `JWT_SECRET` | Secret key for JWT tokens (required, min 32 chars) |
 | `CORS_ORIGIN` | CORS allowed origin |
+| `RATE_LIMIT_WINDOW_MS` | Auth rate-limit window in ms (default: 600000) |
+| `RATE_LIMIT_MAX_REQUESTS` | Max auth requests per window per IP (default: 20) |
 | `FIREBASE_PROJECT_ID` | Firebase project ID |
 | `FIREBASE_PRIVATE_KEY_ID` | Firebase private key ID |
 | `FIREBASE_PRIVATE_KEY` | Firebase private key |
@@ -238,6 +240,10 @@ The API returns standard HTTP status codes:
 - `401` - Unauthorized
 - `404` - Not Found
 - `500` - Server Error
+
+Auth endpoints also return:
+
+- `429` - Too Many Requests (rate limit exceeded)
 
 ## License
 

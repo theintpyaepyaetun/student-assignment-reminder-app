@@ -25,21 +25,23 @@ class FirestoreService {
     String? photoUrl,
   }) async {
     try {
-      final userProfile = UserProfile(
-        uid: uid,
-        email: email,
-        username: username,
-        photoUrl: photoUrl,
-        preferences: {
+      final userData = <String, dynamic>{
+        'email': email,
+        'username': username,
+        'preferences': {
           'theme': 'light',
           'notifications': true,
           'language': 'en',
         },
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+        'createdAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      };
 
-      await _usersCollection.doc(uid).set(userProfile.toMap());
+      if (photoUrl != null) {
+        userData['photoUrl'] = photoUrl;
+      }
+
+      await _usersCollection.doc(uid).set(userData, SetOptions(merge: true));
       debugPrint('✅ User document created in Firestore: $uid');
     } catch (e) {
       debugPrint('❌ Error creating user document: $e');
@@ -147,6 +149,44 @@ class FirestoreService {
     } catch (e) {
       debugPrint('❌ Error checking user document: $e');
       return false;
+    }
+  }
+
+  /// Save or update current FCM token for a user
+  Future<void> saveFcmToken({
+    required String uid,
+    required String token,
+  }) async {
+    try {
+      await _usersCollection.doc(uid).set({
+        'fcmToken': token,
+        'fcmUpdatedAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+      debugPrint('✅ FCM token saved for user: $uid');
+    } catch (e) {
+      debugPrint('❌ Error saving FCM token: $e');
+      rethrow;
+    }
+  }
+
+  /// Remove FCM token on logout
+  Future<void> removeFcmToken({String? uid}) async {
+    final targetUid = uid ?? currentUserId;
+    if (targetUid == null) {
+      throw Exception('No user available to remove FCM token');
+    }
+
+    try {
+      await _usersCollection.doc(targetUid).set({
+        'fcmToken': FieldValue.delete(),
+        'fcmUpdatedAt': Timestamp.now(),
+        'updatedAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+      debugPrint('✅ FCM token removed for user: $targetUid');
+    } catch (e) {
+      debugPrint('❌ Error removing FCM token: $e');
+      rethrow;
     }
   }
 }

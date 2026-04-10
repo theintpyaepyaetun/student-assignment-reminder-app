@@ -410,9 +410,15 @@ class TaskService {
 
       final total = allTasks.length;
       final completed = allTasks.where((task) => task.isCompleted).length;
-      final pending = total - completed;
+      final overdue = allTasks.where((task) => task.isOverdue).length;
+      final pending = total - completed - overdue;
 
-      return {'total': total, 'completed': completed, 'pending': pending};
+      return {
+        'total': total,
+        'completed': completed,
+        'pending': pending,
+        'overdue': overdue,
+      };
     } catch (e) {
       debugPrint('❌ Error getting task stats: $e');
       rethrow;
