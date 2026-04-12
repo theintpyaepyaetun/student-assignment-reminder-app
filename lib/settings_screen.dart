@@ -138,7 +138,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _enforceMandatoryNotifications() async {
+  Future<void> _enforceMandatoryNotifications({
+    bool interactive = false,
+  }) async {
     try {
       await _firestoreService.updatePreference('notifications', true);
     } catch (_) {}
@@ -148,6 +150,70 @@ class _SettingsScreenState extends State<SettingsScreen> {
         true,
       );
       await _syncExistingRemindersForCurrentUser();
+
+      if (interactive) {
+        final notificationsAllowed = await AssignmentNotificationService
+            .instance
+            .ensureAndroidNotificationPermission(requestIfNeeded: true);
+        final exactAlarmAllowed = await AssignmentNotificationService.instance
+            .ensureAndroidExactAlarmPermission(requestIfNeeded: true);
+        final batteryOptimizationIgnored = await AssignmentNotificationService
+            .instance
+            .isIgnoringBatteryOptimizations();
+
+        if (!mounted) return;
+
+        if (!notificationsAllowed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Notification permission is off. Enable it for reminders.',
+              ),
+            ),
+          );
+        }
+
+        if (!exactAlarmAllowed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Exact alarm permission is off. Future reminders may be delayed.',
+              ),
+            ),
+          );
+        }
+
+        if (!batteryOptimizationIgnored) {
+          await showDialog<void>(
+            context: context,
+            builder: (dialogContext) {
+              return AlertDialog(
+                title: const Text('Disable Battery Optimization'),
+                content: const Text(
+                  'Battery optimization can delay reminders on some devices. '
+                  'Allow this app to ignore battery optimization for reliable alerts.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('Not now'),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      Navigator.of(dialogContext).pop();
+                      await AssignmentNotificationService.instance
+                          .promptDisableBatteryOptimizations();
+                    },
+                    child: const Text('Open settings'),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      }
     } catch (e) {
       debugPrint('❌ Failed to enforce mandatory notifications: $e');
     }
@@ -685,7 +751,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       trailing: const Chip(label: Text('ON')),
                       onTap: () async {
-                        await _enforceMandatoryNotifications();
+                        await _enforceMandatoryNotifications(interactive: true);
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

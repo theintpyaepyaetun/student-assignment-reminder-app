@@ -14,8 +14,28 @@
 
     <title>Student Assignment Reminder App</title>
     <link rel="manifest" href="manifest.json" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #0f172a;
+      }
+
+      .loading {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        color: #e2e8f0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          sans-serif;
+        font-size: 14px;
+      }
+    </style>
   </head>
   <body>
-    <script src="flutter_bootstrap.js" async></script>
+    <div class="loading">Loading app...</div>
+    <script src="main.dart.js" defer></script>
   </body>
 </html>

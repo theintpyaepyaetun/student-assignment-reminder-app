@@ -56,6 +56,14 @@ class _DetailScreenState extends State<DetailScreen> {
     return '$hour:$minute $period';
   }
 
+  Color _priorityColor(String priority) {
+    return switch (priority.toLowerCase()) {
+      'high' => const Color(0xFFEF5350),
+      'low' => const Color(0xFF00C853),
+      _ => const Color(0xFFFFB300),
+    };
+  }
+
   DateTime? _parseDeadlineValue(dynamic rawDeadline) {
     if (rawDeadline == null) return null;
 
@@ -410,39 +418,52 @@ class _DetailScreenState extends State<DetailScreen> {
                             const SizedBox(height: 20),
 
                             if (!isEditing)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: widget.assignment["priority"] == "high"
-                                      ? const Color(0xFFEF5350).withOpacity(0.3)
-                                      : const Color(
-                                          0xFFFF9100,
-                                        ).withOpacity(0.3),
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color:
-                                        widget.assignment["priority"] == "high"
-                                        ? const Color(
-                                            0xFFEF5350,
-                                          ).withOpacity(0.5)
-                                        : const Color(
-                                            0xFFFF9100,
-                                          ).withOpacity(0.5),
-                                    width: 0.5,
-                                  ),
-                                ),
-                                child: Text(
-                                  "${widget.assignment['priority'].toString().toUpperCase()} PRIORITY",
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.8),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
+                              Builder(
+                                builder: (context) {
+                                  final priorityText = widget
+                                      .assignment['priority']
+                                      .toString()
+                                      .toLowerCase();
+                                  final priorityColor = _priorityColor(
+                                    priorityText,
+                                  );
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: priorityColor.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: priorityColor.withOpacity(0.5),
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.flag_rounded,
+                                          size: 14,
+                                          color: Colors.white.withOpacity(0.85),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          "${widget.assignment['priority'].toString().toUpperCase()} PRIORITY",
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(
+                                              0.8,
+                                            ),
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
 
                             if (isEditing) const SizedBox(height: 16),
@@ -489,26 +510,16 @@ class _DetailScreenState extends State<DetailScreen> {
                                 ],
                               ),
 
-                            // Deadline Section
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 20,
-                                  color: Colors.white.withOpacity(0.6),
-                                ),
-                                const SizedBox(width: 12),
-                                if (isEditing)
-                                  Expanded(
-                                    child: _buildEditField(
-                                      controller: deadlineController,
-                                      label: "Deadline",
-                                      icon: null,
-                                      readOnly: true,
-                                      onTap: _pickDeadline,
-                                    ),
-                                  )
-                                else
+                            // Deadline Section (view mode only)
+                            if (!isEditing)
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.calendar_today,
+                                    size: 20,
+                                    color: Colors.white.withOpacity(0.6),
+                                  ),
+                                  const SizedBox(width: 12),
                                   Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -532,9 +543,9 @@ class _DetailScreenState extends State<DetailScreen> {
                                       ),
                                     ],
                                   ),
-                              ],
-                            ),
-                            const SizedBox(height: 24),
+                                ],
+                              ),
+                            if (!isEditing) const SizedBox(height: 24),
 
                             // Divider
                             Container(
@@ -642,6 +653,7 @@ class _DetailScreenState extends State<DetailScreen> {
 
   Widget _buildPriorityButton(String label, String value) {
     final isSelected = selectedPriority == value;
+    final color = _priorityColor(value);
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => selectedPriority = value),
@@ -649,12 +661,12 @@ class _DetailScreenState extends State<DetailScreen> {
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.white.withOpacity(0.2)
+                ? color.withOpacity(0.28)
                 : Colors.white.withOpacity(0.08),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: isSelected
-                  ? Colors.white.withOpacity(0.4)
+                  ? color.withOpacity(0.55)
                   : Colors.white.withOpacity(0.15),
               width: 1.5,
             ),

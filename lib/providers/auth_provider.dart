@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:student_assignment_reminder_app/models/user_model.dart';
 import 'package:student_assignment_reminder_app/models/user_profile_model.dart';
 import 'package:student_assignment_reminder_app/services/assignment_notification_service.dart';
@@ -178,9 +179,18 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     final uid = _firebaseService.currentUser?.uid;
+    final firestore = FirebaseFirestore.instance;
     try {
       await _firebaseMessagingService.clearTokenForCurrentUser(uid: uid);
       await _firebaseService.logout();
+
+      try {
+        await firestore.terminate();
+        await firestore.clearPersistence();
+        debugPrint('✅ Firestore local cache cleared on logout');
+      } catch (e) {
+        debugPrint('⚠️ Firestore cache clear skipped: $e');
+      }
     } finally {
       _setState(AuthState());
     }

@@ -1,6 +1,6 @@
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show TargetPlatform;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
@@ -22,6 +22,11 @@ class DefaultFirebaseOptions {
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
+          'you can reconfigure this by running the FlutterFire CLI again.',
+        );
+      case TargetPlatform.fuchsia:
+        throw UnsupportedError(
+          'DefaultFirebaseOptions have not been configured for fuchsia - '
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
     }
@@ -64,22 +69,3 @@ class DefaultFirebaseOptions {
     storageBucket: 'student-assignment-reminder.firebasestorage.app',
   );
 }
-
-// Helper to get default target platform
-TargetPlatform get defaultTargetPlatform {
-  if (kIsWeb) {
-    return TargetPlatform.android; // Default for web
-  }
-  if (Platform.isAndroid) {
-    return TargetPlatform.android;
-  } else if (Platform.isIOS) {
-    return TargetPlatform.iOS;
-  } else if (Platform.isMacOS) {
-    return TargetPlatform.macOS;
-  } else if (Platform.isWindows) {
-    return TargetPlatform.windows;
-  }
-  return TargetPlatform.linux;
-}
-
-enum TargetPlatform { android, iOS, macOS, windows, linux }

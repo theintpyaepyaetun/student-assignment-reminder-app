@@ -31,11 +31,18 @@ class FirebaseMessagingService {
       await _requestUserPermission();
 
       // Get FCM token
-      final token = await _firebaseMessaging.getToken();
-      if (kDebugMode) {
-        print('FCM Token: $token');
+      String? token;
+      try {
+        token = await _firebaseMessaging.getToken();
+        if (kDebugMode) {
+          print('FCM Token: $token');
+        }
+        await _persistTokenForCurrentUser(token);
+      } catch (tokenError) {
+        if (kDebugMode) {
+          print('FCM token fetch skipped: $tokenError');
+        }
       }
-      await _persistTokenForCurrentUser(token);
 
       _firebaseMessaging.onTokenRefresh.listen((newToken) async {
         if (kDebugMode) {
@@ -64,9 +71,6 @@ class FirebaseMessagingService {
     } catch (error) {
       if (kDebugMode) {
         print('Firebase Messaging initialization warning: $error');
-      }
-      if (!kIsWeb) {
-        rethrow;
       }
     }
   }

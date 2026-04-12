@@ -44,6 +44,14 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
     return '$hour:$minute $period';
   }
 
+  Color _priorityColor(String priority) {
+    return switch (priority.toLowerCase()) {
+      'high' => const Color(0xFFEF5350),
+      'low' => const Color(0xFF00C853),
+      _ => const Color(0xFFFFB300),
+    };
+  }
+
   Future<void> _pickDeadline() async {
     final now = DateTime.now();
     final firstDate = DateTime(now.year - 1);
@@ -356,6 +364,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
 
   Widget _buildPriorityButton(String label, String value) {
     final isSelected = selectedPriority == value;
+    final color = _priorityColor(value);
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => selectedPriority = value),
@@ -363,12 +372,12 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? Colors.white.withOpacity(0.25)
+                ? color.withOpacity(0.28)
                 : Colors.white.withOpacity(0.08),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
-                  ? Colors.white.withOpacity(0.4)
+                  ? color.withOpacity(0.55)
                   : Colors.white.withOpacity(0.15),
               width: 1.5,
             ),
@@ -377,7 +386,9 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(isSelected ? 0.95 : 0.7),
+              color: isSelected
+                  ? Colors.white.withOpacity(0.95)
+                  : Colors.white.withOpacity(0.7),
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),

@@ -46,11 +46,7 @@ class FirebaseService {
         '✅ Project: ${DefaultFirebaseOptions.currentPlatform.projectId}',
       );
 
-      // Configure Firestore settings
-      FirebaseFirestore.instance.settings = const Settings(
-        persistenceEnabled: true,
-      );
-      debugPrint('✅ Firestore configured with persistence enabled');
+      debugPrint('✅ Firebase services ready');
     } catch (e) {
       debugPrint('❌ Firebase initialization error: $e');
       rethrow;
@@ -65,7 +61,7 @@ class FirebaseService {
     required String password,
   }) async {
     try {
-      debugPrint('📝 Creating new user: $email');
+      debugPrint('📝 Attempting Firebase sign up for: $email');
       final result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,

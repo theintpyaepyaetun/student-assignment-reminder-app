@@ -1,9 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'login_screen.dart';
-import 'signup_screen.dart';
-import 'home_screen.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -115,13 +112,7 @@ class LandingScreen extends StatelessWidget {
                               height: 54,
                               child: ElevatedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const SignUpScreen(),
-                                    ),
-                                  );
+                                  Navigator.pushNamed(context, '/signup');
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
@@ -146,12 +137,7 @@ class LandingScreen extends StatelessWidget {
                               height: 54,
                               child: OutlinedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const LoginScreen(),
-                                    ),
-                                  );
+                                  Navigator.pushNamed(context, '/login');
                                 },
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: Colors.white,
@@ -175,11 +161,9 @@ class LandingScreen extends StatelessWidget {
                               const SizedBox(height: 14),
                               TextButton(
                                 onPressed: () {
-                                  Navigator.pushReplacement(
+                                  Navigator.pushReplacementNamed(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const HomeScreen(),
-                                    ),
+                                    '/home',
                                   );
                                 },
                                 child: Text(

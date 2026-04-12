@@ -21,7 +21,15 @@ class _LoginScreenState extends State<LoginScreen> {
     super.initState();
     // Initialize auth status lazily when screen is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AuthProvider>().initializeAuthStatus();
+      context.read<AuthProvider>().initializeAuthStatus().then((_) {
+        if (!mounted) return;
+        if (context.read<AuthProvider>().isAuthenticated) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+      });
     });
   }
 
