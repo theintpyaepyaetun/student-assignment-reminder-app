@@ -43,7 +43,7 @@
             android:value="2" />
         <meta-data
             android:name="com.dexterous.flutterlocalnotifications.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@drawable/ic_stat_notification" />
 
         <receiver
             android:exported="false"

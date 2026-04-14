@@ -1,6 +1,7 @@
 import 'dart:ui';
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_auth/firebase_auth.dart' hide AuthProvider;
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -10,6 +11,23 @@ import 'settings_screen.dart';
 import 'detail_screen.dart';
 import 'providers/auth_provider.dart';
 import 'services/assignment_notification_service.dart';
+
+class _AssignmentsStreamState {
+  final List<Map<String, dynamic>> assignments;
+  final bool hasPendingWrites;
+  final bool isFromCache;
+
+  const _AssignmentsStreamState({
+    required this.assignments,
+    required this.hasPendingWrites,
+    required this.isFromCache,
+  });
+
+  const _AssignmentsStreamState.empty()
+    : assignments = const [],
+      hasPendingWrites = false,
+      isFromCache = true;
+}
 
 class HomeScreen extends StatefulWidget {
   final String? initialAssignmentId;
@@ -23,6 +41,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> assignments = [];
   bool _handledInitialAssignment = false;
+  String? _pendingNotificationToken;
+  bool _isSyncingWithServer = false;
+  bool _isShowingCachedData = false;
+  DateTime? _lastSuccessfulSyncAt;
 
   bool get _showEmptyStatePreview {
     return kDebugMode &&
@@ -99,18 +121,76 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openAssignmentDetailById(String assignmentId) {
-    final index = assignments.indexWhere(
-      (assignment) => assignment['id']?.toString() == assignmentId,
-    );
+  int _resolveAssignmentIndexFromNotificationToken(String token) {
+    final normalizedToken = token.trim();
+    if (normalizedToken.isEmpty) return -1;
+
+    final candidateTokens = <String>{normalizedToken};
+    if (normalizedToken.contains('|')) {
+      final firstPart = normalizedToken.split('|').first.trim();
+      if (firstPart.isNotEmpty) {
+        candidateTokens.add(firstPart);
+      }
+    }
+
+    for (final candidate in candidateTokens) {
+      final byId = assignments.indexWhere(
+        (assignment) => assignment['id']?.toString() == candidate,
+      );
+      if (byId >= 0) return byId;
+    }
+
+    final exactTitleMatches = <int>[];
+    final partialTitleMatches = <int>[];
+
+    for (final candidate in candidateTokens) {
+      final tokenLower = candidate.toLowerCase();
+
+      for (var i = 0; i < assignments.length; i++) {
+        final title = assignments[i]['title']?.toString().trim() ?? '';
+        if (title.isEmpty) continue;
+
+        final titleLower = title.toLowerCase();
+        if (titleLower == tokenLower) {
+          exactTitleMatches.add(i);
+        } else if (titleLower.contains(tokenLower) ||
+            tokenLower.contains(titleLower)) {
+          partialTitleMatches.add(i);
+        }
+      }
+    }
+
+    int pickBest(List<int> matches) {
+      if (matches.isEmpty) return -1;
+
+      final firstIncomplete = matches.firstWhere(
+        (i) => assignments[i]['completed'] != true,
+        orElse: () => matches.first,
+      );
+      return firstIncomplete;
+    }
+
+    final exactPick = pickBest(exactTitleMatches);
+    if (exactPick >= 0) return exactPick;
+
+    return pickBest(partialTitleMatches);
+  }
+
+  bool _openAssignmentDetailFromNotificationToken(
+    String token, {
+    bool showNotFoundSnack = true,
+  }) {
+    final index = _resolveAssignmentIndexFromNotificationToken(token);
 
     if (index < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Assignment from notification was not found.'),
-        ),
-      );
-      return;
+      if (showNotFoundSnack && assignments.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Assignment from notification was not found.'),
+          ),
+        );
+      }
+      return false;
     }
 
     final assignment = assignments[index];
@@ -125,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+    return true;
   }
 
   void _openInitialAssignmentIfNeeded() {
@@ -134,9 +215,16 @@ class _HomeScreenState extends State<HomeScreen> {
     if (assignmentId == null || assignmentId.isEmpty) return;
 
     _handledInitialAssignment = true;
+    _pendingNotificationToken = assignmentId;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _openAssignmentDetailById(assignmentId);
+      final opened = _openAssignmentDetailFromNotificationToken(
+        assignmentId,
+        showNotFoundSnack: false,
+      );
+      if (opened) {
+        _pendingNotificationToken = null;
+      }
     });
   }
 
@@ -193,60 +281,59 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void addAssignment(Map<String, dynamic> assignment) {
-    // Save to Firestore first to get document ID
+    // Offline-first: save/schedule immediately from local data.
+    setState(() {
+      assignments.add(assignment);
+    });
+    _scheduleReminderForAssignment(assignment);
+
+    // Then enqueue write to Firestore (works online/offline with persistence).
     try {
       final userId = FirebaseAuth.instance.currentUser?.uid;
-      if (userId != null) {
-        debugPrint('📝 Saving assignment to Firestore for user: $userId');
-
-        // Add userId and timestamps
-        final assignmentData = {
-          ...assignment,
-          'userId': userId,
-          'createdAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
-
-        // Save to Firestore 'assignments' collection
-        FirebaseFirestore.instance
-            .collection('assignments')
-            .add(assignmentData)
-            .then((docRef) {
-              debugPrint(
-                '✅ Assignment created in Firestore with ID: ${docRef.id}',
-              );
-              // Update local state with the document ID
-              setState(() {
-                assignment['id'] = docRef.id;
-                assignments.add(assignment);
-              });
-
-              _scheduleReminderForAssignment(assignment);
-            })
-            .catchError((e) {
-              debugPrint('❌ Error saving to Firestore: $e');
-              // Still add to local state even if Firebase fails
-              setState(() {
-                assignments.add(assignment);
-              });
-
-              _scheduleReminderForAssignment(assignment);
-            });
-      } else {
-        debugPrint('⚠️ No user authenticated - assignment NOT saved');
-        setState(() {
-          assignments.add(assignment);
-        });
-
-        _scheduleReminderForAssignment(assignment);
+      if (userId == null) {
+        debugPrint('⚠️ No user authenticated - keeping local-only assignment');
+        return;
       }
-    } catch (e) {
-      debugPrint('❌ Firestore save error: $e');
-      setState(() {
-        assignments.add(assignment);
-      });
 
-      _scheduleReminderForAssignment(assignment);
+      debugPrint('📝 Queueing assignment write to Firestore for user: $userId');
+
+      final previousReminderKey = _assignmentNotificationKey(assignment);
+      final assignmentData = {
+        ...assignment,
+        'userId': userId,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      assignmentData.remove('id');
+
+      FirebaseFirestore.instance
+          .collection('assignments')
+          .add(assignmentData)
+          .then((docRef) {
+            debugPrint(
+              '✅ Assignment write queued with Firestore ID: ${docRef.id}',
+            );
+
+            final updated = <String, dynamic>{...assignment, 'id': docRef.id};
+            final nextReminderKey = _assignmentNotificationKey(updated);
+
+            if (previousReminderKey != nextReminderKey) {
+              AssignmentNotificationService.instance.cancelReminder(
+                previousReminderKey,
+              );
+            }
+
+            setState(() {
+              assignment['id'] = docRef.id;
+            });
+
+            _scheduleReminderForAssignment(assignment);
+          })
+          .catchError((e) {
+            debugPrint('❌ Error queueing assignment write to Firestore: $e');
+          });
+    } catch (e) {
+      debugPrint('❌ Firestore write setup error (kept local): $e');
     }
   }
 
@@ -491,18 +578,18 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Stream<List<Map<String, dynamic>>> _getAssignmentsStream() {
+  Stream<_AssignmentsStreamState> _getAssignmentsStream() {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) {
-      return Stream.value([]);
+      return Stream.value(const _AssignmentsStreamState.empty());
     }
 
     return FirebaseFirestore.instance
         .collection('assignments')
         .where('userId', isEqualTo: userId)
-        .snapshots()
+        .snapshots(includeMetadataChanges: true)
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final mappedAssignments = snapshot.docs.map((doc) {
             final data = doc.data();
             final rawDeadline = data['deadline'];
             final rawPriority = data['priority'];
@@ -534,271 +621,324 @@ class _HomeScreenState extends State<HomeScreen> {
               'userId': data['userId'],
             };
           }).toList();
+
+          return _AssignmentsStreamState(
+            assignments: mappedAssignments,
+            hasPendingWrites: snapshot.metadata.hasPendingWrites,
+            isFromCache: snapshot.metadata.isFromCache,
+          );
         })
         .handleError((e) {
           debugPrint('❌ Error streaming assignments: $e');
-          return [];
+          return const _AssignmentsStreamState.empty();
         });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        iconTheme: const IconThemeData(color: Colors.white),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 10),
-          child: IconButton(
-            icon: const Icon(Icons.folder_outlined, size: 26),
-            onPressed: _openArchiveScreen,
-            tooltip: 'Archive',
-          ),
-        ),
-        title: const Text(
-          "Assignments",
-          style: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-            letterSpacing: -0.5,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
+    return PopScope(
+      canPop: kIsWeb,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (!kIsWeb) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          iconTheme: const IconThemeData(color: Colors.white),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 10),
             child: IconButton(
-              icon: const Icon(Icons.settings_outlined, size: 24),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const SettingsScreen(),
-                  ),
-                );
-              },
+              icon: const Icon(Icons.folder_outlined, size: 26),
+              onPressed: _openArchiveScreen,
+              tooltip: 'Archive',
             ),
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Gradient Background
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          title: const Text(
+            "Assignments",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: -0.5,
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: IconButton(
+                icon: const Icon(Icons.settings_outlined, size: 24),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const SettingsScreen(),
+                    ),
+                  );
+                },
               ),
             ),
-          ),
+          ],
+        ),
+        body: Stack(
+          children: [
+            // Gradient Background
+            Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF667EEA), Color(0xFF764BA2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+            ),
 
-          // Content
-          StreamBuilder<List<Map<String, dynamic>>>(
-            stream: _getAssignmentsStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting &&
-                  !snapshot.hasData) {
-                return const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                );
-              }
-
-              if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Error loading assignments: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                );
-              }
-
-              final streamAssignments = snapshot.data ?? [];
-              final hasIncompleteAssignments = streamAssignments.any(
-                (a) => a['completed'] != true,
-              );
-              final shouldShowEmptyState =
-                  !hasIncompleteAssignments || _showEmptyStatePreview;
-
-              // Update local state with stream data for use in other methods
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted && assignments != streamAssignments) {
-                  setState(() {
-                    assignments = streamAssignments;
-                  });
-
-                  // Schedule reminders for all loaded assignments
-                  for (final assignment in streamAssignments) {
-                    _scheduleReminderForAssignment(assignment);
-                  }
+            // Content
+            StreamBuilder<_AssignmentsStreamState>(
+              stream: _getAssignmentsStream(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
                 }
-              });
 
-              return SingleChildScrollView(
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final availableWidth = constraints.maxWidth;
-                      final contentMaxWidth = availableWidth;
-                      final horizontalPadding = availableWidth >= 900
-                          ? 32.0
-                          : 16.0;
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error loading assignments: ${snapshot.error}',
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                }
 
-                      return ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: contentMaxWidth),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: horizontalPadding,
+                final streamState =
+                    snapshot.data ?? const _AssignmentsStreamState.empty();
+                final streamAssignments = streamState.assignments;
+                final hasIncompleteAssignments = streamAssignments.any(
+                  (a) => a['completed'] != true,
+                );
+                final shouldShowEmptyState =
+                    !hasIncompleteAssignments || _showEmptyStatePreview;
+
+                // Update local state with stream data for use in other methods
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+
+                  final didSyncJustComplete =
+                      _isSyncingWithServer &&
+                      !streamState.hasPendingWrites &&
+                      !streamState.isFromCache;
+
+                  if (assignments != streamAssignments ||
+                      _isSyncingWithServer != streamState.hasPendingWrites ||
+                      _isShowingCachedData != streamState.isFromCache ||
+                      didSyncJustComplete) {
+                    setState(() {
+                      assignments = streamAssignments;
+                      _isSyncingWithServer = streamState.hasPendingWrites;
+                      _isShowingCachedData = streamState.isFromCache;
+                      if (didSyncJustComplete) {
+                        _lastSuccessfulSyncAt = DateTime.now();
+                      }
+                    });
+
+                    // Schedule reminders for all loaded assignments
+                    for (final assignment in streamAssignments) {
+                      _scheduleReminderForAssignment(assignment);
+                    }
+
+                    if (didSyncJustComplete) {
+                      debugPrint(
+                        '✅ Assignment writes synced to Firestore at $_lastSuccessfulSyncAt',
+                      );
+                    }
+                  }
+
+                  if (_pendingNotificationToken != null &&
+                      streamAssignments.isNotEmpty) {
+                    final pendingToken = _pendingNotificationToken!;
+                    final opened = _openAssignmentDetailFromNotificationToken(
+                      pendingToken,
+                      showNotFoundSnack: true,
+                    );
+                    if (opened) {
+                      _pendingNotificationToken = null;
+                    }
+                  }
+                });
+
+                return SingleChildScrollView(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final availableWidth = constraints.maxWidth;
+                        final contentMaxWidth = availableWidth;
+                        final horizontalPadding = availableWidth >= 900
+                            ? 32.0
+                            : 16.0;
+
+                        return ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: contentMaxWidth,
                           ),
-                          child: Column(
-                            children: [
-                              SizedBox(height: _contentTopPadding(context)),
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: horizontalPadding,
+                            ),
+                            child: Column(
+                              children: [
+                                SizedBox(height: _contentTopPadding(context)),
 
-                              // Demo mode banner
-                              Consumer<AuthProvider>(
-                                builder: (context, auth, _) {
-                                  if (auth.isDemoMode) {
-                                    return Container(
-                                      width: double.infinity,
-                                      color: Colors.yellow.withValues(
-                                        alpha: 0.9,
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: const Text(
-                                        'Demo mode active – no Firebase configuration found',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: Colors.black87,
-                                          fontSize: 14,
+                                // Demo mode banner
+                                Consumer<AuthProvider>(
+                                  builder: (context, auth, _) {
+                                    if (auth.isDemoMode) {
+                                      return Container(
+                                        width: double.infinity,
+                                        color: Colors.yellow.withValues(
+                                          alpha: 0.9,
                                         ),
-                                      ),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 8,
+                                        ),
+                                        child: const Text(
+                                          'Demo mode active – no Firebase configuration found',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.black87,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
+
+                                if (shouldShowEmptyState) ...[
+                                  _buildAllCaughtUpBanner(),
+                                  const SizedBox(height: 14),
+                                ],
+
+                                // Status Chips (responsive)
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final width = constraints.maxWidth;
+
+                                    final spacing = width < 420 ? 8.0 : 12.0;
+                                    final perChipWidth =
+                                        (width - spacing * 2) / 3;
+                                    final compact = perChipWidth < 150;
+                                    final ultraCompact = perChipWidth < 120;
+
+                                    final completedChip = _buildStatusChip(
+                                      label: "Completed",
+                                      count: streamAssignments
+                                          .where((a) => a["completed"])
+                                          .length,
+                                      icon: Icons.check_circle,
+                                      color: const Color(0xFF00C851),
+                                      compact: compact,
+                                      ultraCompact: ultraCompact,
                                     );
-                                  }
-                                  return const SizedBox.shrink();
-                                },
-                              ),
+                                    final pendingChip = _buildStatusChip(
+                                      label: "Pending",
+                                      count: streamAssignments
+                                          .where(
+                                            (a) =>
+                                                !a["completed"] &&
+                                                !_isAssignmentOverdue(a),
+                                          )
+                                          .length,
+                                      icon: Icons.pending_actions,
+                                      color: const Color(0xFFFF9100),
+                                      compact: compact,
+                                      ultraCompact: ultraCompact,
+                                    );
+                                    final overdueChip = _buildStatusChip(
+                                      label: "Overdue",
+                                      count: streamAssignments
+                                          .where(_isAssignmentOverdue)
+                                          .length,
+                                      icon: Icons.error_outline_rounded,
+                                      color: const Color(0xFFEF5350),
+                                      compact: compact,
+                                      ultraCompact: ultraCompact,
+                                    );
 
-                              if (shouldShowEmptyState) ...[
-                                _buildAllCaughtUpBanner(),
-                                const SizedBox(height: 14),
-                              ],
-
-                              // Status Chips (responsive)
-                              LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final width = constraints.maxWidth;
-
-                                  final spacing = width < 420 ? 8.0 : 12.0;
-                                  final perChipWidth =
-                                      (width - spacing * 2) / 3;
-                                  final compact = perChipWidth < 150;
-                                  final ultraCompact = perChipWidth < 120;
-
-                                  final completedChip = _buildStatusChip(
-                                    label: "Completed",
-                                    count: streamAssignments
-                                        .where((a) => a["completed"])
-                                        .length,
-                                    icon: Icons.check_circle,
-                                    color: const Color(0xFF00C851),
-                                    compact: compact,
-                                    ultraCompact: ultraCompact,
-                                  );
-                                  final pendingChip = _buildStatusChip(
-                                    label: "Pending",
-                                    count: streamAssignments
-                                        .where(
-                                          (a) =>
-                                              !a["completed"] &&
-                                              !_isAssignmentOverdue(a),
-                                        )
-                                        .length,
-                                    icon: Icons.pending_actions,
-                                    color: const Color(0xFFFF9100),
-                                    compact: compact,
-                                    ultraCompact: ultraCompact,
-                                  );
-                                  final overdueChip = _buildStatusChip(
-                                    label: "Overdue",
-                                    count: streamAssignments
-                                        .where(_isAssignmentOverdue)
-                                        .length,
-                                    icon: Icons.error_outline_rounded,
-                                    color: const Color(0xFFEF5350),
-                                    compact: compact,
-                                    ultraCompact: ultraCompact,
-                                  );
-
-                                  return Row(
-                                    children: [
-                                      completedChip,
-                                      SizedBox(width: spacing),
-                                      pendingChip,
-                                      SizedBox(width: spacing),
-                                      overdueChip,
-                                    ],
-                                  );
-                                },
-                              ),
-
-                              const SizedBox(height: 26),
-
-                              if (shouldShowEmptyState)
-                                _buildEmptyAssignmentsState()
-                              else
-                                ListView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: streamAssignments.length,
-                                  itemBuilder: (context, index) {
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 14,
-                                      ),
-                                      child: _buildAssignmentCard(
-                                        context,
-                                        index,
-                                        streamAssignments[index],
-                                      ),
+                                    return Row(
+                                      children: [
+                                        completedChip,
+                                        SizedBox(width: spacing),
+                                        pendingChip,
+                                        SizedBox(width: spacing),
+                                        overdueChip,
+                                      ],
                                     );
                                   },
                                 ),
 
-                              const SizedBox(height: 32),
-                            ],
+                                const SizedBox(height: 26),
+
+                                if (shouldShowEmptyState)
+                                  _buildEmptyAssignmentsState()
+                                else
+                                  ListView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: streamAssignments.length,
+                                    itemBuilder: (context, index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          bottom: 14,
+                                        ),
+                                        child: _buildAssignmentCard(
+                                          context,
+                                          index,
+                                          streamAssignments[index],
+                                        ),
+                                      );
+                                    },
+                                  ),
+
+                                const SizedBox(height: 32),
+                              ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
+                        );
+                      },
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddAssignmentScreen,
-        backgroundColor: Colors.white.withValues(alpha: 0.25),
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.3),
-            width: 1.5,
-          ),
+                );
+              },
+            ),
+          ],
         ),
-        child: Icon(
-          Icons.add,
-          color: Colors.white.withValues(alpha: 0.9),
-          size: 28,
+        floatingActionButton: FloatingActionButton(
+          onPressed: _openAddAssignmentScreen,
+          backgroundColor: Colors.white.withValues(alpha: 0.25),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: Colors.white.withValues(alpha: 0.3),
+              width: 1.5,
+            ),
+          ),
+          child: Icon(
+            Icons.add,
+            color: Colors.white.withValues(alpha: 0.9),
+            size: 28,
+          ),
         ),
       ),
     );

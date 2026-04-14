@@ -50,6 +50,18 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "/app.html",
+        "type": 302
+      },
+      {
+        "source": "/index.html",
+        "destination": "/app.html",
+        "type": 302
+      }
+    ],
     "rewrites": [
       {
         "source": "/login",
@@ -79,7 +91,7 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=31536000"
+            "value": "max-age=0, no-cache, no-store, must-revalidate"
           }
         ]
       },

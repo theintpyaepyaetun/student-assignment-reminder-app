@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import '../firebase_options.dart';
 import 'firestore_service.dart';
 import 'assignment_notification_service.dart';
+import '../main.dart';
 
 class FirebaseMessagingService {
   static final FirebaseMessagingService _instance =
@@ -129,8 +130,11 @@ class FirebaseMessagingService {
       if (kDebugMode) {
         print('Navigating to assignment: $assignmentId');
       }
-      // You can implement navigation here by using a global navigation key
-      // or by emitting an event through a provider/state management
+      // Use the global navigator key to navigate to the home screen with assignmentId
+      appNavigatorKey.currentState?.pushNamed(
+        '/home',
+        arguments: {'assignmentId': assignmentId},
+      );
     }
   }
 

@@ -15,7 +15,7 @@ import 'providers/auth_provider.dart';
 import 'providers/assignment_provider.dart';
 import 'providers/task_provider.dart';
 import 'services/assignment_notification_service.dart';
-import 'services/firebase_options.dart';
+import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 

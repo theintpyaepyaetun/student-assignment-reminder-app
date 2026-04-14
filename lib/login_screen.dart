@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -119,9 +119,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       height: 80,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.3),
+                          color: Colors.white.withValues(alpha: 0.3),
                           width: 2,
                         ),
                       ),
@@ -147,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Text(
                       "Manage your assignments with ease",
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.7),
+                        color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 16,
                         fontWeight: FontWeight.w400,
                         letterSpacing: 0.2,
@@ -166,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               'Configure Firebase to disable this message.',
                               textAlign: TextAlign.center,
                               style: TextStyle(
-                                color: Colors.yellow.withOpacity(0.9),
+                                color: Colors.yellow.withValues(alpha: 0.9),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -185,15 +185,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(28),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(28),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.1),
+                                color: Colors.black.withValues(alpha: 0.1),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
@@ -231,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                           : login,
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.white
-                                            .withOpacity(0.25),
+                                            .withValues(alpha: 0.25),
                                         foregroundColor: Colors.white,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
@@ -249,8 +249,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                                     AlwaysStoppedAnimation<
                                                       Color
                                                     >(
-                                                      Colors.white.withOpacity(
-                                                        0.7,
+                                                      Colors.white.withValues(
+                                                        alpha: 0.7,
                                                       ),
                                                     ),
                                                 strokeWidth: 2,
@@ -276,16 +276,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                     return Container(
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
-                                        color: Colors.red.withOpacity(0.2),
+                                        color: Colors.red.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: Colors.red.withOpacity(0.5),
+                                          color: Colors.red.withValues(
+                                            alpha: 0.5,
+                                          ),
                                         ),
                                       ),
                                       child: Text(
                                         authProvider.error!,
                                         style: TextStyle(
-                                          color: Colors.red.withOpacity(0.8),
+                                          color: Colors.red.withValues(
+                                            alpha: 0.8,
+                                          ),
                                           fontSize: 14,
                                         ),
                                       ),
@@ -311,7 +317,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             "Forgot Password?",
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -327,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Text(
                             "Sign Up",
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                             ),
@@ -358,9 +364,12 @@ class _LoginScreenState extends State<LoginScreen> {
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.2),
+              width: 1,
+            ),
           ),
           child: TextField(
             controller: controller,
@@ -374,11 +383,14 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: InputDecoration(
               hintText: label,
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withValues(alpha: 0.5),
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
               ),
-              prefixIcon: Icon(icon, color: Colors.white.withOpacity(0.6)),
+              prefixIcon: Icon(
+                icon,
+                color: Colors.white.withValues(alpha: 0.6),
+              ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,

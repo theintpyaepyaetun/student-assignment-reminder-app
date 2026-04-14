@@ -6,7 +6,7 @@ import 'package:student_assignment_reminder_app/models/task_model.dart';
 /// Complete CRUD Demo Screen
 /// Demonstrates all Create, Read, Update, Delete operations with user-specific data
 class CRUDDemoScreen extends StatefulWidget {
-  const CRUDDemoScreen({Key? key}) : super(key: key);
+  const CRUDDemoScreen({super.key});
 
   @override
   State<CRUDDemoScreen> createState() => _CRUDDemoScreenState();
@@ -37,10 +37,12 @@ class _CRUDDemoScreenState extends State<CRUDDemoScreen> {
 
   // ============ CREATE ============
   void _createTask() async {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please enter a title')));
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('Please enter a title')),
+      );
       return;
     }
 
@@ -57,13 +59,13 @@ class _CRUDDemoScreenState extends State<CRUDDemoScreen> {
       _descriptionController.clear();
       _selectedDate = DateTime.now().add(const Duration(days: 7));
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('✅ Task created: $taskId')));
+      messenger?.showSnackBar(
+        SnackBar(content: Text('✅ Task created: $taskId')),
+      );
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('❌ Failed to create task')));
+      messenger?.showSnackBar(
+        const SnackBar(content: Text('❌ Failed to create task')),
+      );
     }
   }
 
@@ -88,6 +90,7 @@ class _CRUDDemoScreenState extends State<CRUDDemoScreen> {
 
     context.read<TaskProvider>().updateTask(task.id, updatedTask);
 
+    if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('✅ Task updated')));
@@ -97,6 +100,7 @@ class _CRUDDemoScreenState extends State<CRUDDemoScreen> {
   void _deleteTask(String taskId) {
     context.read<TaskProvider>().deleteTask(taskId);
 
+    if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('✅ Task deleted')));

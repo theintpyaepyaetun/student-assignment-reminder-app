@@ -44,7 +44,7 @@ class AssignmentProvider extends ChangeNotifier {
                     ),
                   );
                 } catch (e) {
-                  print('Error parsing assignment: $e');
+                  debugPrint('Error parsing assignment: $e');
                 }
               }
             });

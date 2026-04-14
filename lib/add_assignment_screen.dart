@@ -194,15 +194,15 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.12),
+                          color: Colors.white.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
+                              color: Colors.black.withValues(alpha: 0.1),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -251,7 +251,7 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                             Text(
                               "Priority Level",
                               style: TextStyle(
-                                color: Colors.white.withOpacity(0.8),
+                                color: Colors.white.withValues(alpha: 0.8),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.3,
@@ -276,8 +276,8 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
                               child: ElevatedButton(
                                 onPressed: addAssignment,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(
-                                    0.25,
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.25,
                                   ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
@@ -324,9 +324,12 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
         filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
+            color: Colors.white.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.2),
+              width: 1,
+            ),
           ),
           child: TextField(
             controller: controller,
@@ -342,13 +345,13 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
             decoration: InputDecoration(
               hintText: label,
               hintStyle: TextStyle(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.white.withValues(alpha: 0.4),
                 fontSize: 16,
                 fontWeight: FontWeight.w400,
               ),
               prefixIcon: IconButton(
                 onPressed: onTap,
-                icon: Icon(icon, color: Colors.white.withOpacity(0.5)),
+                icon: Icon(icon, color: Colors.white.withValues(alpha: 0.5)),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
@@ -372,13 +375,13 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected
-                ? color.withOpacity(0.28)
-                : Colors.white.withOpacity(0.08),
+                ? color.withValues(alpha: 0.28)
+                : Colors.white.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
-                  ? color.withOpacity(0.55)
-                  : Colors.white.withOpacity(0.15),
+                  ? color.withValues(alpha: 0.55)
+                  : Colors.white.withValues(alpha: 0.15),
               width: 1.5,
             ),
           ),
@@ -387,8 +390,8 @@ class _AssignmentScreenState extends State<AssignmentScreen> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: isSelected
-                  ? Colors.white.withOpacity(0.95)
-                  : Colors.white.withOpacity(0.7),
+                  ? Colors.white.withValues(alpha: 0.95)
+                  : Colors.white.withValues(alpha: 0.7),
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),

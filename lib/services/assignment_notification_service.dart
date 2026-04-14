@@ -129,7 +129,7 @@ class AssignmentNotificationService {
     }
 
     const androidSettings = AndroidInitializationSettings(
-      '@mipmap/ic_launcher',
+      'ic_stat_notification',
     );
     const iosSettings = DarwinInitializationSettings();
 
@@ -513,6 +513,78 @@ class AssignmentNotificationService {
       title,
       assignmentId: assignmentId,
     );
+  }
+
+  /// Schedule a local notification at the exact due date/time.
+  ///
+  /// This works offline because scheduling happens on-device.
+  Future<bool> scheduleNotificationAtDueDate({
+    required String assignmentId,
+    required String title,
+    required DateTime dueDate,
+    String? body,
+  }) async {
+    await initialize();
+
+    if (!_supportsLocalNotifications) {
+      return false;
+    }
+
+    final isEnabled = await isDeadlineReminderEnabled();
+    if (!isEnabled) {
+      debugPrint('ℹ️ Deadline reminders disabled - skipping due-date schedule');
+      return false;
+    }
+
+    final permissionsGranted = await requestRequiredPermissions();
+    if (!permissionsGranted) {
+      debugPrint(
+        '⚠️ Required notification/exact alarm permissions missing. Due-date reminder cannot be scheduled.',
+      );
+      return false;
+    }
+
+    final exactAlarmAllowed = await ensureAndroidExactAlarmPermission(
+      requestIfNeeded: true,
+    );
+
+    final localDueDate = dueDate.toLocal();
+    if (!localDueDate.isAfter(DateTime.now())) {
+      debugPrint(
+        'ℹ️ Due date is not in the future, skipping due-date reminder for: $assignmentId',
+      );
+      return false;
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      _deadlineChannelId,
+      _deadlineChannelName,
+      channelDescription: _deadlineChannelDescription,
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.reminder,
+      visibility: NotificationVisibility.public,
+    );
+
+    const iosDetails = DarwinNotificationDetails();
+
+    const details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    final payload = _buildReminderPayload(assignmentId, title);
+    await _scheduleZoned(
+      _notificationIdForType(assignmentId, _dueTimeReminderSuffix),
+      title,
+      body ?? 'Your assignment is due now.',
+      localDueDate,
+      details,
+      payload,
+      preferExact: exactAlarmAllowed,
+    );
+
+    return true;
   }
 
   Future<bool> scheduleAssignmentReminder(

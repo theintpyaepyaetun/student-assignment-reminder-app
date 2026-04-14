@@ -1,5 +1,5 @@
-/// API Configuration
-/// Update the baseUrl to match your backend server
+// API Configuration
+// Update the baseUrl to match your backend server
 
 class ApiConfig {
   // Development - Running locally

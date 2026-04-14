@@ -216,7 +216,7 @@ class NoteService {
         throw Exception('Permission denied');
       }
 
-      final updatedTags = [...note.tags, tag].toSet().toList();
+      final updatedTags = <String>{...note.tags, tag}.toList();
 
       await _firestore.collection('notes').doc(noteId).update({
         'tags': updatedTags,

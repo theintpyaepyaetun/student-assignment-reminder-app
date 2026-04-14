@@ -139,7 +139,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
           ),
@@ -151,7 +151,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               height: 300,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.05),
+                color: Colors.white.withValues(alpha: 0.05),
               ),
             ),
           ),
@@ -172,7 +172,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         width: 45,
                         height: 45,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(
@@ -197,7 +197,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       'Join us to manage your assignments',
                       style: TextStyle(
                         fontSize: 16,
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                       ),
                     ),
                     const SizedBox(height: 40),
@@ -210,10 +210,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         child: Container(
                           padding: const EdgeInsets.all(24),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.15),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.white.withValues(alpha: 0.2),
                               width: 1.5,
                             ),
                           ),
@@ -226,7 +226,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -239,18 +239,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'Enter your full name',
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
@@ -265,7 +265,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     color: Colors.white70,
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white.withOpacity(0.08),
+                                  fillColor: Colors.white.withValues(alpha: 0.08),
                                 ),
                               ),
                               const SizedBox(height: 20),
@@ -276,7 +276,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -289,18 +289,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'Enter your email',
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
@@ -315,7 +315,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     color: Colors.white70,
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white.withOpacity(0.08),
+                                  fillColor: Colors.white.withValues(alpha: 0.08),
                                 ),
                               ),
                               const SizedBox(height: 20),
@@ -326,7 +326,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -340,18 +340,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'Enter your password',
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
@@ -379,7 +379,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white.withOpacity(0.08),
+                                  fillColor: Colors.white.withValues(alpha: 0.08),
                                 ),
                               ),
                               const SizedBox(height: 20),
@@ -390,7 +390,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: Colors.white.withOpacity(0.9),
+                                  color: Colors.white.withValues(alpha: 0.9),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -404,18 +404,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 decoration: InputDecoration(
                                   hintText: 'Confirm your password',
                                   hintStyle: TextStyle(
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.white.withValues(alpha: 0.5),
                                   ),
                                   border: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   enabledBorder: OutlineInputBorder(
                                     borderRadius: BorderRadius.circular(12),
                                     borderSide: BorderSide(
-                                      color: Colors.white.withOpacity(0.3),
+                                      color: Colors.white.withValues(alpha: 0.3),
                                     ),
                                   ),
                                   focusedBorder: OutlineInputBorder(
@@ -444,7 +444,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: Colors.white.withOpacity(0.08),
+                                  fillColor: Colors.white.withValues(alpha: 0.08),
                                 ),
                               ),
                             ],
@@ -471,7 +471,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 BoxShadow(
                                   color: const Color(
                                     0xFFFF6B6B,
-                                  ).withOpacity(0.4),
+                                  ).withValues(alpha: 0.4),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -515,10 +515,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFEF5350).withOpacity(0.2),
+                              color: const Color(0xFFEF5350).withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFFEF5350).withOpacity(0.5),
+                                color: const Color(0xFFEF5350).withValues(alpha: 0.5),
                               ),
                             ),
                             child: Text(
@@ -545,7 +545,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           'Already have an account? ',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                         GestureDetector(

@@ -205,7 +205,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   priority: priority,
                 );
 
-                if (mounted) {
+                if (!context.mounted) return;
+
+                if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Task created!')),
@@ -274,7 +276,9 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   updatedTask,
                 );
 
-                if (mounted) {
+                if (!context.mounted) return;
+
+                if (context.mounted) {
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Task updated!')),

@@ -3,6 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_profile_model.dart';
 
+class FirestoreSyncState {
+  final bool hasPendingWrites;
+  final bool isFromCache;
+  final bool isFullySynced;
+
+  const FirestoreSyncState({
+    required this.hasPendingWrites,
+    required this.isFromCache,
+  }) : isFullySynced = !hasPendingWrites && !isFromCache;
+}
+
 class FirestoreService {
   static final FirestoreService _instance = FirestoreService._internal();
   factory FirestoreService() => _instance;
@@ -112,6 +123,30 @@ class FirestoreService {
     }
   }
 
+  /// Queue a preference write for robust offline support.
+  ///
+  /// Firestore will persist locally first and sync automatically when the
+  /// network is available again.
+  Future<void> updatePreferenceQueued(
+    String key,
+    dynamic value, {
+    bool waitForServerSync = false,
+    Duration syncTimeout = const Duration(seconds: 30),
+  }) async {
+    if (currentUserId == null) {
+      throw Exception('No user logged in');
+    }
+
+    await _usersCollection.doc(currentUserId).set({
+      'preferences.$key': value,
+      'updatedAt': Timestamp.now(),
+    }, SetOptions(merge: true));
+
+    if (waitForServerSync) {
+      await waitForCurrentUserSync(timeout: syncTimeout);
+    }
+  }
+
   /// Stream user profile changes (real-time updates)
   Stream<UserProfile?> streamUserProfile(String uid) {
     return _usersCollection.doc(uid).snapshots().map((snapshot) {
@@ -122,12 +157,45 @@ class FirestoreService {
     });
   }
 
+  /// Stream metadata sync status for the user profile document.
+  Stream<FirestoreSyncState> streamUserProfileSyncState(String uid) {
+    return _usersCollection
+        .doc(uid)
+        .snapshots(includeMetadataChanges: true)
+        .map(
+          (snapshot) => FirestoreSyncState(
+            hasPendingWrites: snapshot.metadata.hasPendingWrites,
+            isFromCache: snapshot.metadata.isFromCache,
+          ),
+        );
+  }
+
   /// Stream current user's profile
   Stream<UserProfile?> streamCurrentUserProfile() {
     if (currentUserId == null) {
       return Stream.value(null);
     }
     return streamUserProfile(currentUserId!);
+  }
+
+  /// Wait until pending writes are acknowledged by server and cache is no
+  /// longer the source for this document.
+  Future<void> waitForCurrentUserSync({
+    Duration timeout = const Duration(seconds: 30),
+  }) async {
+    if (currentUserId == null) {
+      throw Exception('No user logged in');
+    }
+
+    await _usersCollection
+        .doc(currentUserId)
+        .snapshots(includeMetadataChanges: true)
+        .firstWhere(
+          (snapshot) =>
+              !snapshot.metadata.hasPendingWrites &&
+              !snapshot.metadata.isFromCache,
+        )
+        .timeout(timeout);
   }
 
   /// Delete user document (use with caution)
