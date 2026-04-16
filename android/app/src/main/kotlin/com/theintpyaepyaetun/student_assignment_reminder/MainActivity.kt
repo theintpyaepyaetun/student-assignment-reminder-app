@@ -1,4 +1,4 @@
-package com.example.student_assignment_reminder_app
+package com.theintpyaepyaetun.student_assignment_reminder
 
 import io.flutter.embedding.android.FlutterActivity
 

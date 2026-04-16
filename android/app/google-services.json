@@ -9,9 +9,28 @@
       "client_info": {
         "mobilesdk_app_id": "1:752057448311:android:1765e5f144d254b8ff1372",
         "android_client_info": {
-          "package_name": "com.example.student_assignment_reminder_app"
+          "package_name": "com.theintpyaepyaetun.student_assignment_reminder"
         }
       },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAaXhNSOTHu8Df26Q_ykLCx6KfmCZ6Khjc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+  "mobilesdk_app_id": "...",
+  "android_client_info": {
+    "package_name": "com.theintpyaepyaetun.student_assignment_reminder" 
+  }
+},
       "oauth_client": [],
       "api_key": [
         {
