@@ -50,30 +50,19 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "redirects": [
-      {
-        "source": "/",
-        "destination": "/app.html",
-        "type": 302
-      },
-      {
-        "source": "/index.html",
-        "destination": "/app.html",
-        "type": 302
-      }
-    ],
+    "redirects": [],
     "rewrites": [
       {
-        "source": "/login",
+        "source": "/app",
         "destination": "/app.html"
       },
       {
-        "source": "/signup",
+        "source": "/app/**",
         "destination": "/app.html"
       },
       {
-        "source": "/home",
-        "destination": "/app.html"
+        "source": "/",
+        "destination": "/index.html"
       }
     ],
     "headers": [

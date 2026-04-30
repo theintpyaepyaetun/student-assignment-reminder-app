@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:html' as html;
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -112,7 +114,12 @@ class LandingScreen extends StatelessWidget {
                               height: 54,
                               child: ElevatedButton(
                                 onPressed: () {
-                                  Navigator.pushNamed(context, '/signup');
+                                  if (kIsWeb) {
+                                    // window နေရာမှာ html.window လို့ သုံးပေးပါ
+                                    html.window.location.assign('/app');
+                                  } else {
+                                    Navigator.pushNamed(context, '/signup');
+                                  }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
@@ -123,7 +130,7 @@ class LandingScreen extends StatelessWidget {
                                   elevation: 0,
                                 ),
                                 child: const Text(
-                                  'Create Account',
+                                  'Get Started',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,

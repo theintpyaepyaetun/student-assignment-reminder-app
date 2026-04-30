@@ -7,14 +7,14 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:provider/provider.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
-import 'landing_screen.dart';
-import 'login_screen.dart';
-import 'signup_screen.dart';
-import 'home_screen.dart';
-import 'providers/auth_provider.dart';
-import 'providers/assignment_provider.dart';
-import 'providers/task_provider.dart';
-import 'services/assignment_notification_service.dart';
+import 'package:student_assignment_reminder_app/screens/landing_screen.dart';
+import 'package:student_assignment_reminder_app/screens/login_screen.dart';
+import 'package:student_assignment_reminder_app/screens/signup_screen.dart';
+import 'package:student_assignment_reminder_app/screens/home_screen.dart';
+import 'package:student_assignment_reminder_app/providers/auth_provider.dart';
+import 'package:student_assignment_reminder_app/providers/assignment_provider.dart';
+import 'package:student_assignment_reminder_app/providers/task_provider.dart';
+import 'package:student_assignment_reminder_app/services/assignment_notification_service.dart';
 import 'firebase_options.dart';
 
 final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
@@ -80,18 +80,18 @@ class StudentApp extends StatelessWidget {
   String _resolveInitialRoute() {
     final hasActiveSession = FirebaseAuth.instance.currentUser != null;
     final path = Uri.base.path.toLowerCase();
-
     final screen = Uri.base.queryParameters['screen']?.toLowerCase();
-    if (screen == 'login') return '/login';
-    if (screen == 'signup') return '/signup';
-    if (screen == 'home') return '/home';
 
-    if (path == '/signup') return '/signup';
-    if (path == '/home') return '/home';
-    if (path == '/login') return '/login';
-    if (hasActiveSession) return '/home';
-
-    return '/login';
+    // If on /app, go to app logic, else show landing
+    if (path == '/app' || path.startsWith('/app')) {
+      if (screen == 'login') return '/login';
+      if (screen == 'signup') return '/signup';
+      if (screen == 'home') return '/home';
+      if (hasActiveSession) return '/home';
+      return '/login';
+    }
+    // Default: show landing page
+    return '/landing';
   }
 
   @override
@@ -144,11 +144,11 @@ class StudentApp extends StatelessWidget {
         onGenerateRoute: (settings) {
           switch (settings.name) {
             case '/login':
-              return MaterialPageRoute(builder: (_) => const LoginScreen());
+              return MaterialPageRoute(builder: (_) => LoginScreen());
             case '/signup':
-              return MaterialPageRoute(builder: (_) => const SignUpScreen());
+              return MaterialPageRoute(builder: (_) => SignUpScreen());
             case '/landing':
-              return MaterialPageRoute(builder: (_) => const LandingScreen());
+              return MaterialPageRoute(builder: (_) => LandingScreen());
             case '/home':
               final args = settings.arguments;
               String? assignmentId;
@@ -159,7 +159,12 @@ class StudentApp extends StatelessWidget {
                 builder: (_) => HomeScreen(initialAssignmentId: assignmentId),
               );
             default:
-              return MaterialPageRoute(builder: (_) => const LoginScreen());
+              // If on /app, default to login, else landing
+              final path = Uri.base.path.toLowerCase();
+              if (path == '/app' || path.startsWith('/app')) {
+                return MaterialPageRoute(builder: (_) => LoginScreen());
+              }
+              return MaterialPageRoute(builder: (_) => LandingScreen());
           }
         },
       ),

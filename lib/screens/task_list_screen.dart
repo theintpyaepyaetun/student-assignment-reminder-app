@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:student_assignment_reminder_app/models/task_model.dart';
 import 'package:student_assignment_reminder_app/providers/task_provider.dart';
-import 'package:student_assignment_reminder_app/settings_screen.dart';
+import 'package:student_assignment_reminder_app/screens/settings_screen.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
